@@ -11,13 +11,11 @@
 const os = require("os");
 
 module.exports = {
-  // Listening hostname (just for `gulp live` task).
-  domain: process.env.DOMAIN || "localhost",
   // Signaling settings (protoo WebSocket server and HTTP API server).
   http: {
     listenIp: "0.0.0.0",
     // NOTE: Don't change listenPort (client app assumes 4443).
-    listenPort: process.env.PROTOO_LISTEN_PORT || 4443,
+    listenPort: 4443,
   },
   // mediasoup settings.
   mediasoup: {
@@ -41,8 +39,8 @@ module.exports = {
         "svc",
         "sctp",
       ],
-      rtcMinPort: process.env.MEDIASOUP_MIN_PORT || 40000,
-      rtcMaxPort: process.env.MEDIASOUP_MAX_PORT || 49999,
+      rtcMinPort: 40000,
+      rtcMaxPort: 49999,
     },
     // mediasoup Router options.
     // See https://mediasoup.org/documentation/v3/mediasoup/api/#RouterOptions
@@ -101,8 +99,10 @@ module.exports = {
     webRtcTransportOptions: {
       listenIps: [
         {
-          ip: process.env.MEDIASOUP_LISTEN_IP || "1.2.3.4",
-          announcedIp: process.env.MEDIASOUP_ANNOUNCED_IP,
+          // The Ip of the interface to listen on
+          ip: "127.0.0.1",
+          // The public Ip or the Ip that's reachable by the clients
+          announcedIp: "127.0.0.1",
         },
       ],
       initialAvailableOutgoingBitrate: 1000000,
@@ -116,8 +116,10 @@ module.exports = {
     // See https://mediasoup.org/documentation/v3/mediasoup/api/#PlainTransportOptions
     plainTransportOptions: {
       listenIp: {
-        ip: process.env.MEDIASOUP_LISTEN_IP || "1.2.3.4",
-        announcedIp: process.env.MEDIASOUP_ANNOUNCED_IP,
+        // The Ip of the interface to listen on.
+        ip: "127.0.0.1",
+        // The public Ip or the Ip that's reachable by the clients
+        announcedIp: "127.0.0.1",
       },
       maxSctpMessageSize: 262144,
     },

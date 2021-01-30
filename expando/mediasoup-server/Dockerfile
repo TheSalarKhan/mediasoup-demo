@@ -4,7 +4,7 @@ FROM node:10 AS stage-one
 RUN \
 	set -x \
 	&& apt-get update \
-	&& apt-get install -y net-tools build-essential valgrind
+	&& apt-get install -y net-tools build-essential
 
 WORKDIR /service
 
@@ -13,6 +13,5 @@ RUN npm install
 COPY server.js .
 COPY config.js .
 COPY lib lib
-COPY certs certs
 
 CMD ["node", "/service/server.js"]

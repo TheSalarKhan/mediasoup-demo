@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 process.title = "mediasoup-server";
-process.env.DEBUG = process.env.DEBUG || "*INFO* *WARN* *ERROR*";
+process.env.DEBUG = process.env.DEBUG || "*mediasoup* *INFO* *WARN* *ERROR*";
 
 const config = require("./config");
 
