@@ -17,6 +17,7 @@ const protoo = require("protoo-server");
 const mediasoup = require("mediasoup");
 const express = require("express");
 const bodyParser = require("body-parser");
+const cors = require("cors");
 const { AwaitQueue } = require("awaitqueue");
 const Logger = require("./lib/Logger");
 const Room = require("./lib/Room");
@@ -132,6 +133,7 @@ async function createExpressApp() {
   expressApp = express();
 
   expressApp.use(bodyParser.json());
+  expressApp.use(cors());
 
   /**
    * For every API request, verify that the roomId in the path matches and
