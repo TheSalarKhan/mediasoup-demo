@@ -34,8 +34,8 @@ const logger = new Logger("RoomClient");
 
 let store;
 
-function getProtooUrl({ base, roomId, peerId }) {
-  return `wss://${base}?roomId=${roomId}&peerId=${peerId}`;
+function getProtooUrl({ baseUrl, roomId, peerId }) {
+  return `wss://${baseUrl}?roomId=${roomId}&peerId=${peerId}`;
 }
 
 export default class RoomClient {
@@ -70,6 +70,8 @@ export default class RoomClient {
       peerId,
       displayName
     );
+
+    this._roomId = roomId;
 
     // Closed flag.
     // @type {Boolean}
