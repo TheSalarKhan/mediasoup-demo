@@ -183,8 +183,8 @@ export default class RoomClient extends EventEmitter {
   _addDataConsumerToPeer(peerId, consumer) {
     const peer = this._peers.find((p) => p.id === peerId);
     if (!peer) return;
-    const consumer = peer.dataConsumers.find((c) => c.id === consumer.id);
-    if (consumer) return;
+    const consumerExists = peer.dataConsumers.find((c) => c.id === consumer.id);
+    if (consumerExists) return;
     peer.dataConsumers.push(consumer);
   }
 
@@ -197,8 +197,8 @@ export default class RoomClient extends EventEmitter {
   _addConsumerToPeer(peerId, consumer) {
     const peer = this._peers.find((p) => p.id === peerId);
     if (!peer) return;
-    const consumer = peer.consumers.find((c) => c.id === consumer.id);
-    if (consumer) return;
+    const consumerExists = peer.consumers.find((c) => c.id === consumer.id);
+    if (consumerExists) return;
     peer.consumers.push(consumer);
   }
 

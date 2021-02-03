@@ -4,6 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
+    "build": "browserify -p esmify RoomClient.js > RoomClient.bundle.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "",
@@ -12,5 +13,9 @@
     "eventemitter3": "^4.0.7",
     "mediasoup-client": "^3.6.27",
     "protoo-client": "^4.0.6"
+  },
+  "devDependencies": {
+    "browserify": "^17.0.0",
+    "esmify": "^2.1.1"
   }
 }
