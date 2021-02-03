@@ -64,6 +64,7 @@ export default class RoomClient extends EventEmitter {
     svc = false,
     datachannel,
     baseUrl,
+    audioOnlyMode=false,
   }) {
     logger.debug(
       'constructor() [roomId:"%s", peerId:"%s", displayName:"%s"]',
@@ -73,6 +74,8 @@ export default class RoomClient extends EventEmitter {
     );
 
     this._roomId = roomId;
+
+    this.audioOnlyMode = audioOnlyMode;
 
     // Closed flag.
     // @type {Boolean}
@@ -353,7 +356,7 @@ export default class RoomClient extends EventEmitter {
             accept();
 
             // If audio-only mode is enabled, pause it.
-            if (consumer.kind === "video" && store.getState().me.audioOnly)
+            if (consumer.kind === "video" && this.audioOnlyMode)
               this._pauseConsumer(consumer);
           } catch (error) {
             logger.error('"newConsumer" request failed:%o', error);
