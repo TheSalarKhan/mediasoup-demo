@@ -35,7 +35,7 @@ const SCREEN_SHARING_SVC_ENCODINGS = [{ scalabilityMode: "S3T3", dtx: true }];
 const logger = new Logger("RoomClient");
 
 function getProtooUrl({ baseUrl, roomId, peerId }) {
-  return `wss://${baseUrl}?roomId=${roomId}&peerId=${peerId}`;
+  return `${baseUrl}?roomId=${roomId}&peerId=${peerId}`;
 }
 
 export default class RoomClient extends EventEmitter {

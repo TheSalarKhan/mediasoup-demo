@@ -1,9 +1,10 @@
 #!/usr/bin/env node
 
 process.title = "mediasoup-server";
-process.env.DEBUG = process.env.DEBUG || "*mediasoup* *INFO* *WARN* *ERROR*";
 
 const config = require("./config");
+process.env.DEBUG = config.debug;
+process.env.INTERACTIVE = config.interactive;
 
 /* eslint-disable no-console */
 console.log("process.env.DEBUG:", process.env.DEBUG);

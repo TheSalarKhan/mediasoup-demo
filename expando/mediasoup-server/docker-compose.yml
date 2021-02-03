@@ -5,6 +5,5 @@ services:
     build: .
     restart: always
     network_mode: "host"
-    env_file: .env
     volumes:
       - ./config.js:/service/config.js

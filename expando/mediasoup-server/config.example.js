@@ -11,6 +11,11 @@
 const os = require("os");
 
 module.exports = {
+  // Flags for the 'debug' module.
+  // CAUTION: The value of this is set in process.env.DEBUG.
+  debug: "*mediasoup* *INFO* *WARN* *ERROR*",
+  // The server starts with an interactive shell if 'true'.
+  interactive: false,
   // Signaling settings (protoo WebSocket server and HTTP API server).
   http: {
     listenIp: "0.0.0.0",
@@ -51,11 +56,10 @@ module.exports = {
           mimeType: "audio/opus",
           clockRate: 48000,
           channels: 2,
-          parameters :
-	  {
-            useinbandfec : 1,
-            usedtx : 1
-          }
+          parameters: {
+            useinbandfec: 1,
+            usedtx: 1,
+          },
         },
         {
           kind: "video",
