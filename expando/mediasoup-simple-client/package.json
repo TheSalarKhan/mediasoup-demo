@@ -2,20 +2,23 @@
   "name": "mediasoup-simple-client",
   "version": "1.0.0",
   "description": "",
-  "main": "index.js",
+  "main": "dist/bundle.js",
   "scripts": {
-    "build": "browserify -p esmify RoomClient.js > RoomClient.bundle.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "build": "webpack"
   },
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "debug": "^4.3.1",
     "eventemitter3": "^4.0.7",
     "mediasoup-client": "^3.6.27",
     "protoo-client": "^4.0.6"
   },
   "devDependencies": {
-    "browserify": "^17.0.0",
-    "esmify": "^2.1.1"
+    "@babel/core": "^7.12.13",
+    "@babel/preset-env": "^7.12.13",
+    "babel-loader": "^8.2.2",
+    "webpack": "^5.20.0",
+    "webpack-cli": "^4.5.0"
   }
 }

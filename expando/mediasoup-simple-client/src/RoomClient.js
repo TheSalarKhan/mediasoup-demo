@@ -1,5 +1,6 @@
 import protooClient from "protoo-client";
 import * as mediasoupClient from "mediasoup-client";
+import Logger from "./Logger";
 import { EventEmitter } from "eventemitter3";
 
 const VIDEO_CONSTRAINS = {
@@ -42,20 +43,18 @@ export default class RoomClient extends EventEmitter {
     roomId,
     peerId,
     displayName,
-    // device,
-    // handlerName,
-    useSimulcast = true,
-    // useSharingSimulcast,
-    forceTcp,
-    produce,
-    consume,
-    forceH264,
-    forceVP9,
-    svc = false,
-    datachannel,
     baseUrl,
+    useSimulcast = true,
+    forceTcp = false,
+    produce = true,
+    consume = true,
+    forceH264 = false,
+    forceVP9 = false,
+    svc = false,
+    datachannel = false,
     audioOnlyMode = false,
   }) {
+    super();
     logger.debug(
       'constructor() [roomId:"%s", peerId:"%s", displayName:"%s"]',
       roomId,
