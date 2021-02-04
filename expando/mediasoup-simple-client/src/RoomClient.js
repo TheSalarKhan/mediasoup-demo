@@ -35,43 +35,41 @@ const SCREEN_SHARING_SVC_ENCODINGS = [{ scalabilityMode: "S3T3", dtx: true }];
 const logger = new Logger("RoomClient");
 
 export const EVENTS = {
+  // Room events
   CLOSED: "CLOSED",
   CONNECTING: "CONNECTING",
-  ERROR: "ERROR",
-  NEW_CONSUMER: "NEW_CONSUMER",
-  NEW_CHAT_MESSAGE: "NEW_CHAT_MESSAGE",
-  NEW_DATA_CONSUMER: "NEW_DATA_CONSUMER",
-  PRODUCER_SCORE: "PRODUCER_SCORE",
+  CONNECTED: "CONNECTED",
+  // Peer events
+  // SET_DISPLAY_NAME: "SET_DISPLAY_NAME",
   NEW_PEER: "NEW_PEER",
   REMOVE_PEER: "REMOVE_PEER",
   PEER_DISPLAY_NAME_CHANGED: "PEER_DISPLAY_NAME_CHANGED",
+  // Consumer events
+  NEW_CONSUMER: "NEW_CONSUMER",
   REMOVE_CONSUMER: "REMOVE_CONSUMER",
+  NEW_DATA_CONSUMER: "NEW_DATA_CONSUMER",
+  REMOVE_DATA_CONSUMER: "REMOVE_DATA_CONSUMER",
+  NEW_CHAT_MESSAGE: "NEW_CHAT_MESSAGE",
   CONSUMER_PAUSED: "CONSUMER_PAUSED",
   CONSUMER_RESUMED: "CONSUMER_RESUMED",
   CONSUMER_LAYERS_CHANGED: "CONSUMER_LAYERS_CHANGED",
   CONSUMER_SCORE: "CONSUMER_SCORE",
-  REMOVE_DATA_CONSUMER: "REMOVE_DATA_CONSUMER",
-  NEW_PRODUCER: "NEW_PRODUCER",
-  MIC_DISCONNECTED: "MIC_DISCONNECTED",
-  REMOVE_PRODUCER: "REMOVE_PRODUCER",
-  PRODUCER_PAUSED: "PRODUCER_PAUSED",
-  PRODUCER_RESUMED: "PRODUCER_RESUMED",
-  WEBCAM_IN_PROGRESS: "WEBCAM_IN_PROGRESS",
-  NEW_PRODUCER: "NEW_PRODUCER",
-  SET_PRODUCER_TRACK: "SET_PRODUCER_TRACK",
-  SHARE_IN_PROGRESS: "SHARE_IN_PROGRESS",
-  AUDIO_ONLY_IN_PROGRESS: "AUDIO_ONLY_IN_PROGRESS",
-  AUDIO_MUTED: "AUDIO_MUTED",
-  RESTART_ICE_IN_PROGRESS: "RESTART_ICE_IN_PROGRESS",
   SET_CONSUMER_PREFERRED_LAYERS: "SET_CONSUMER_PREFFERED_LAYERS",
   SET_CONSUMER_PRIORITY: "SET_CONSUMER_PRIORITY",
-  ADD_DATA_PRODUCER: "ADD_DATA_PRODUCER",
-  SET_DISPLAY_NAME: "SET_DISPLAY_NAME",
-  CONNECTED: "CONNECTED",
-  MEDIA_CAPABILITIES: "MEDIA_CAPABILITIES",
+  // Producer events
+  NEW_PRODUCER: "NEW_PRODUCER",
+  REMOVE_PRODUCER: "REMOVE_PRODUCER",
+  NEW_DATA_PRODUCER: "NEW_DATA_PRODUCER",
+  PRODUCER_SCORE: "PRODUCER_SCORE",
+  PRODUCER_PAUSED: "PRODUCER_PAUSED",
+  PRODUCER_RESUMED: "PRODUCER_RESUMED",
+  SET_PRODUCER_TRACK: "SET_PRODUCER_TRACK",
+  // Misc events
+  MIC_DISCONNECTED: "MIC_DISCONNECTED",
   CAN_CHANGE_WEBCAM: "CAN_CHANGE_WEBCAM",
-  CONSUMER_PAUSED: "CONSUMER_PAUSED",
-  CONSUMER_RESUMED: "CONSUMER_RESUMED",
+  MEDIA_CAPABILITIES: "MEDIA_CAPABILITIES",
+  AUDIO_MUTED: "AUDIO_MUTED",
+  ERROR: "ERROR",
 };
 
 export const MODES = {
@@ -900,8 +898,6 @@ export default class RoomClient extends EventEmitter {
     let track;
     let device;
 
-    this.emit(EVENTS.WEBCAM_IN_PROGRESS, true);
-
     try {
       await this._updateWebcams();
       device = this._webcam.device;
@@ -1002,8 +998,6 @@ export default class RoomClient extends EventEmitter {
 
       if (track) track.stop();
     }
-
-    this.emit(EVENTS.WEBCAM_IN_PROGRESS, false);
   }
 
   async disableWebcam() {
@@ -1031,8 +1025,6 @@ export default class RoomClient extends EventEmitter {
 
   async changeWebcam() {
     logger.debug("changeWebcam()");
-
-    this.emit(EVENTS.WEBCAM_IN_PROGRESS, true);
 
     try {
       await this._updateWebcams();
@@ -1088,14 +1080,10 @@ export default class RoomClient extends EventEmitter {
         text: `Could not change webcam: ${error}`,
       });
     }
-
-    this.emit(EVENTS.WEBCAM_IN_PROGRESS, false);
   }
 
   async changeWebcamResolution() {
     logger.debug("changeWebcamResolution()");
-
-    this.emit(EVENTS.WEBCAM_IN_PROGRESS, true);
 
     try {
       switch (this._webcam.resolution) {
@@ -1137,8 +1125,6 @@ export default class RoomClient extends EventEmitter {
         text: `Could not change webcam resolution: ${error}`,
       });
     }
-
-    this.emit(EVENTS.WEBCAM_IN_PROGRESS, false);
   }
 
   async enableShare() {
@@ -1157,8 +1143,6 @@ export default class RoomClient extends EventEmitter {
 
     let track;
 
-    this.emit(EVENTS.SHARE_IN_PROGRESS, true);
-
     try {
       logger.debug("enableShare() | calling getUserMedia()");
 
@@ -1176,8 +1160,6 @@ export default class RoomClient extends EventEmitter {
 
       // May mean cancelled (in some implementations).
       if (!stream) {
-        this.emit(EVENTS.SHARE_IN_PROGRESS, false);
-
         return;
       }
 
@@ -1271,8 +1253,6 @@ export default class RoomClient extends EventEmitter {
 
       if (track) track.stop();
     }
-
-    this.emit(EVENTS.SHARE_IN_PROGRESS, false);
   }
 
   async disableShare() {
@@ -1298,48 +1278,6 @@ export default class RoomClient extends EventEmitter {
     this._shareProducer = null;
   }
 
-  async enableAudioOnly() {
-    logger.debug("enableAudioOnly()");
-
-    this.emit(EVENTS.AUDIO_ONLY_IN_PROGRESS, true);
-
-    this.disableWebcam();
-
-    for (const consumer of this._consumers.values()) {
-      if (consumer.kind !== "video") continue;
-
-      this._pauseConsumer(consumer);
-    }
-
-    this.emit(EVENTS.AUDIO_ONLY_STATE, true);
-
-    this.emit(EVENTS.AUDIO_ONLY_IN_PROGRESS, false);
-  }
-
-  async disableAudioOnly() {
-    logger.debug("disableAudioOnly()");
-
-    this.emit(EVENTS.AUDIO_ONLY_IN_PROGRESS, true);
-
-    if (
-      !this._webcamProducer &&
-      this._produce &&
-      true // TODO: Need webcam enabled boolean here instead of true.
-    ) {
-      this.enableWebcam();
-    }
-
-    for (const consumer of this._consumers.values()) {
-      if (consumer.kind !== "video") continue;
-
-      this._resumeConsumer(consumer);
-    }
-
-    this.emit(EVENTS.AUDIO_ONLY_STATE, false);
-
-    this.emit(EVENTS.AUDIO_ONLY_IN_PROGRESS, false);
-  }
-
   async muteAudio() {
     logger.debug("muteAudio()");
 
@@ -1354,8 +1292,6 @@ export default class RoomClient extends EventEmitter {
 
   async restartIce() {
     logger.debug("restartIce()");
-
-    this.emit(EVENTS.RESTART_ICE_IN_PROGRESS, true);
 
     try {
       if (this._sendTransport) {
@@ -1383,8 +1319,6 @@ export default class RoomClient extends EventEmitter {
         text: `ICE restart failed: ${error}`,
       });
     }
-
-    this.emit(EVENTS.RESTART_ICE_IN_PROGRESS, true);
   }
 
   async setMaxSendingSpatialLayer(spatialLayer) {
@@ -1491,7 +1425,7 @@ export default class RoomClient extends EventEmitter {
         appData: { info: "my-chat-DataProducer" },
       });
 
-      this.emit(EVENTS.ADD_DATA_PRODUCER, {
+      this.emit(EVENTS.NEW_DATA_PRODUCER, {
         id: this._chatDataProducer.id,
         sctpStreamParameters: this._chatDataProducer.sctpStreamParameters,
         label: this._chatDataProducer.label,
@@ -1558,7 +1492,7 @@ export default class RoomClient extends EventEmitter {
         appData: { info: "my-bot-DataProducer" },
       });
 
-      this.emit(EVENTS.ADD_DATA_PRODUCER, {
+      this.emit(EVENTS.NEW_DATA_PRODUCER, {
         id: this._botDataProducer.id,
         sctpStreamParameters: this._botDataProducer.sctpStreamParameters,
         label: this._botDataProducer.label,
@@ -1664,14 +1598,17 @@ export default class RoomClient extends EventEmitter {
 
       this._displayName = displayName;
 
-      this.emit(EVENTS.SET_DISPLAY_NAME, displayName);
+      // This event is not needed since the caller can just await on
+      // the call.
+      // this.emit(EVENTS.SET_DISPLAY_NAME, displayName);
     } catch (error) {
       logger.error("changeDisplayName() | failed: %o", error);
 
-      this.emit(EVENTS.ERROR, {
-        type: "change-display-name-error",
-        text: `Could not change display name: ${error}`,
-      });
+      throw error;
+      // this.emit(EVENTS.ERROR, {
+      //   type: "change-display-name-error",
+      //   text: `Could not change display name: ${error}`,
+      // });
     }
   }
 
@@ -2044,8 +1981,12 @@ export default class RoomClient extends EventEmitter {
       if (this._produce) {
         // Set our media capabilities.
         this.emit(EVENTS.MEDIA_CAPABILITIES, {
-          canSendMic: this._mediasoupDevice.canProduce("audio"),
-          canSendWebcam: this._mediasoupDevice.canProduce("video"),
+          canSendMic:
+            this._mode !== MODES.VIDEO_ONLY &&
+            this._mediasoupDevice.canProduce("audio"),
+          canSendWebcam:
+            this._mode !== MODES.AUDIO_ONLY &&
+            this._mediasoupDevice.canProduce("video"),
         });
 
         this.enableMic();
