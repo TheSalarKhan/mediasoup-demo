@@ -5,7 +5,7 @@ module.exports = {
   entry: path.resolve(__dirname, "src/index.js"),
   output: {
     // file name to use for the output file.
-    filename: "bundle.js",
+    filename: "mediasoup-simple-client-bundle.js",
     // path of the output folder
     path: path.resolve(__dirname, "dist"),
     // name of the variable on which the exports object will be mapped.

@@ -36,39 +36,48 @@ const logger = new Logger("RoomClient");
 
 export const EVENTS = {
   // Room events
-  CLOSED: "CLOSED",
-  CONNECTING: "CONNECTING",
-  CONNECTED: "CONNECTED",
+  ROOM: {
+    CLOSED: "CLOSED",
+    CONNECTING: "CONNECTING",
+    CONNECTED: "CONNECTED",
+  },
   // Peer events
-  // SET_DISPLAY_NAME: "SET_DISPLAY_NAME",
-  NEW_PEER: "NEW_PEER",
-  REMOVE_PEER: "REMOVE_PEER",
-  PEER_DISPLAY_NAME_CHANGED: "PEER_DISPLAY_NAME_CHANGED",
+  PEER: {
+    NEW_PEERS: "NEW_PEERS",
+    REMOVE_PEER: "REMOVE_PEER",
+    PEER_DISPLAY_NAME_CHANGED: "PEER_DISPLAY_NAME_CHANGED",
+  },
   // Consumer events
-  NEW_CONSUMER: "NEW_CONSUMER",
-  REMOVE_CONSUMER: "REMOVE_CONSUMER",
-  NEW_DATA_CONSUMER: "NEW_DATA_CONSUMER",
-  REMOVE_DATA_CONSUMER: "REMOVE_DATA_CONSUMER",
-  NEW_CHAT_MESSAGE: "NEW_CHAT_MESSAGE",
-  CONSUMER_PAUSED: "CONSUMER_PAUSED",
-  CONSUMER_RESUMED: "CONSUMER_RESUMED",
-  CONSUMER_LAYERS_CHANGED: "CONSUMER_LAYERS_CHANGED",
-  CONSUMER_SCORE: "CONSUMER_SCORE",
-  SET_CONSUMER_PREFERRED_LAYERS: "SET_CONSUMER_PREFFERED_LAYERS",
-  SET_CONSUMER_PRIORITY: "SET_CONSUMER_PRIORITY",
+  CONSUMER: {
+    NEW_CONSUMER: "NEW_CONSUMER",
+    REMOVE_CONSUMER: "REMOVE_CONSUMER",
+    NEW_DATA_CONSUMER: "NEW_DATA_CONSUMER",
+    REMOVE_DATA_CONSUMER: "REMOVE_DATA_CONSUMER",
+    NEW_CHAT_MESSAGE: "NEW_CHAT_MESSAGE",
+    CONSUMER_PAUSED: "CONSUMER_PAUSED",
+    CONSUMER_RESUMED: "CONSUMER_RESUMED",
+    CONSUMER_LAYERS_CHANGED: "CONSUMER_LAYERS_CHANGED",
+    CONSUMER_SCORE: "CONSUMER_SCORE",
+    SET_CONSUMER_PREFERRED_LAYERS: "SET_CONSUMER_PREFFERED_LAYERS",
+    SET_CONSUMER_PRIORITY: "SET_CONSUMER_PRIORITY",
+  },
   // Producer events
-  NEW_PRODUCER: "NEW_PRODUCER",
-  REMOVE_PRODUCER: "REMOVE_PRODUCER",
-  NEW_DATA_PRODUCER: "NEW_DATA_PRODUCER",
-  PRODUCER_SCORE: "PRODUCER_SCORE",
-  PRODUCER_PAUSED: "PRODUCER_PAUSED",
-  PRODUCER_RESUMED: "PRODUCER_RESUMED",
-  SET_PRODUCER_TRACK: "SET_PRODUCER_TRACK",
+  PRODUCER: {
+    NEW_PRODUCER: "NEW_PRODUCER",
+    REMOVE_PRODUCER: "REMOVE_PRODUCER",
+    NEW_DATA_PRODUCER: "NEW_DATA_PRODUCER",
+    PRODUCER_SCORE: "PRODUCER_SCORE",
+    PRODUCER_PAUSED: "PRODUCER_PAUSED",
+    PRODUCER_RESUMED: "PRODUCER_RESUMED",
+    SET_PRODUCER_TRACK: "SET_PRODUCER_TRACK",
+  },
   // Misc events
-  MIC_DISCONNECTED: "MIC_DISCONNECTED",
-  CAN_CHANGE_WEBCAM: "CAN_CHANGE_WEBCAM",
-  MEDIA_CAPABILITIES: "MEDIA_CAPABILITIES",
-  AUDIO_MUTED: "AUDIO_MUTED",
+  MISC: {
+    MIC_DISCONNECTED: "MIC_DISCONNECTED",
+    CAN_CHANGE_WEBCAM: "CAN_CHANGE_WEBCAM",
+    MEDIA_CAPABILITIES: "MEDIA_CAPABILITIES",
+    AUDIO_MUTED: "AUDIO_MUTED",
+  },
   ERROR: "ERROR",
 };
 
@@ -115,6 +124,9 @@ export default class RoomClient extends EventEmitter {
 
     this._roomId = roomId;
 
+    if (!Object.values(MODES).includes(mode)) {
+      throw Error(`Invalid mode. Has to be one of mediasoup.MODES`);
+    }
     this._mode = mode;
     // Closed flag.
     // @type {Boolean}
@@ -289,7 +301,7 @@ export default class RoomClient extends EventEmitter {
 
     if (this._recvTransport) this._recvTransport.close();
 
-    this.emit(EVENTS.CLOSED);
+    this.emit(EVENTS.ROOM.CLOSED);
   }
 
   async join() {
@@ -299,7 +311,7 @@ export default class RoomClient extends EventEmitter {
 
     this._protoo = new protooClient.Peer(protooTransport);
 
-    this.emit(EVENTS.CONNECTED);
+    this.emit(EVENTS.ROOM.CONNECTED);
 
     this._protoo.on("open", () => this._joinRoom());
 
@@ -327,7 +339,7 @@ export default class RoomClient extends EventEmitter {
         this._recvTransport = null;
       }
 
-      this.emit(EVENTS.CLOSED);
+      this.emit(EVENTS.ROOM.CLOSED);
     });
 
     this._protoo.on("close", () => {
@@ -412,7 +424,7 @@ export default class RoomClient extends EventEmitter {
               track: consumer.track,
             };
             this._addConsumerToPeer(peerId, newConsumer);
-            this.emit(EVENTS.NEW_CONSUMER, {
+            this.emit(EVENTS.CONSUMER.NEW_CONSUMER, {
               consumer: newConsumer,
               peerId,
             });
@@ -551,7 +563,7 @@ export default class RoomClient extends EventEmitter {
                     break;
                   }
 
-                  this.emit(EVENTS.NEW_CHAT_MESSAGE, {
+                  this.emit(EVENTS.CONSUMER.NEW_CHAT_MESSAGE, {
                     sender: sendingPeer,
                     text: message,
                   });
@@ -574,7 +586,7 @@ export default class RoomClient extends EventEmitter {
               protocol: dataConsumer.protocol,
             };
             this._addDataConsumerToPeer(peerId, consumer);
-            this.emit(EVENTS.NEW_DATA_CONSUMER, {
+            this.emit(EVENTS.CONSUMER.NEW_DATA_CONSUMER, {
               consumer,
               peerId,
             });
@@ -608,7 +620,7 @@ export default class RoomClient extends EventEmitter {
         case "producerScore": {
           const { producerId, score } = notification.data;
 
-          this.emit(EVENTS.PRODUCER_SCORE, { producerId, score });
+          this.emit(EVENTS.PRODUCER.PRODUCER_SCORE, { producerId, score });
 
           break;
         }
@@ -618,7 +630,7 @@ export default class RoomClient extends EventEmitter {
 
           const newPeer = { ...peer, consumers: [], dataConsumers: [] };
           this._addPeer(newPeer);
-          this.emit(EVENTS.NEW_PEER, newPeer);
+          this.emit(EVENTS.PEER.NEW_PEERS, [newPeer]);
 
           break;
         }
@@ -627,7 +639,7 @@ export default class RoomClient extends EventEmitter {
           const { peerId } = notification.data;
 
           this._removePeer(peerId);
-          this.emit(EVENTS.REMOVE_PEER, { peerId });
+          this.emit(EVENTS.PEER.REMOVE_PEER, { peerId });
 
           break;
         }
@@ -638,7 +650,10 @@ export default class RoomClient extends EventEmitter {
           // Update name in the local list.
           const peer = this._peers.filter((p) => p.id === peerId);
           peer.displayName = displayName;
-          this.emit(EVENTS.PEER_DISPLAY_NAME_CHANGED, { displayName, peerId });
+          this.emit(EVENTS.PEER.PEER_DISPLAY_NAME_CHANGED, {
+            displayName,
+            peerId,
+          });
 
           break;
         }
@@ -661,7 +676,7 @@ export default class RoomClient extends EventEmitter {
           const { peerId } = consumer.appData;
 
           this._removeConsumerFromPeer(peerId, consumerId);
-          this.emit(EVENTS.REMOVE_CONSUMER, { consumerId, peerId });
+          this.emit(EVENTS.CONSUMER.REMOVE_CONSUMER, { consumerId, peerId });
 
           break;
         }
@@ -674,7 +689,10 @@ export default class RoomClient extends EventEmitter {
 
           consumer.pause();
 
-          this.emit(EVENTS.CONSUMER_PAUSED, { consumerId, type: "remote" });
+          this.emit(EVENTS.CONSUMER.CONSUMER_PAUSED, {
+            consumerId,
+            type: "remote",
+          });
 
           break;
         }
@@ -687,7 +705,10 @@ export default class RoomClient extends EventEmitter {
 
           consumer.resume();
 
-          this.emit(EVENTS.CONSUMER_RESUMED, { consumerId, type: "remote" });
+          this.emit(EVENTS.CONSUMER.CONSUMER_RESUMED, {
+            consumerId,
+            type: "remote",
+          });
 
           break;
         }
@@ -698,7 +719,7 @@ export default class RoomClient extends EventEmitter {
 
           if (!consumer) break;
 
-          this.emit(EVENTS.CONSUMER_LAYERS_CHANGED, {
+          this.emit(EVENTS.CONSUMER.CONSUMER_LAYERS_CHANGED, {
             consumerId,
             spatialLayer,
             temporalLayer,
@@ -710,7 +731,7 @@ export default class RoomClient extends EventEmitter {
         case "consumerScore": {
           const { consumerId, score } = notification.data;
 
-          this.emit(EVENTS.CONSUMER_SCORE, { consumerId, score });
+          this.emit(EVENTS.CONSUMER.CONSUMER_SCORE, { consumerId, score });
 
           break;
         }
@@ -727,7 +748,7 @@ export default class RoomClient extends EventEmitter {
           const { peerId } = dataConsumer.appData;
 
           this._removeDataConsumerFromPeer(peerId, dataConsumerId);
-          this.emit(EVENTS.REMOVE_DATA_CONSUMER, {
+          this.emit(EVENTS.CONSUMER.REMOVE_DATA_CONSUMER, {
             dataConsumerId,
             peerId,
           });
@@ -787,7 +808,7 @@ export default class RoomClient extends EventEmitter {
         // 	.find((codec) => codec.mimeType.toLowerCase() === 'audio/pcma')
       });
 
-      this.emit(EVENTS.NEW_PRODUCER, {
+      this.emit(EVENTS.PRODUCER.NEW_PRODUCER, {
         id: this._micProducer.id,
         paused: this._micProducer.paused,
         track: this._micProducer.track,
@@ -800,7 +821,7 @@ export default class RoomClient extends EventEmitter {
       });
 
       this._micProducer.on("trackended", () => {
-        this.emit(EVENTS.MIC_DISCONNECTED);
+        this.emit(EVENTS.MISC.MIC_DISCONNECTED);
 
         this.disableMic().catch(() => {});
       });
@@ -823,7 +844,9 @@ export default class RoomClient extends EventEmitter {
 
     this._micProducer.close();
 
-    this.emit(EVENTS.REMOVE_PRODUCER, { producerId: this._micProducer.id });
+    this.emit(EVENTS.PRODUCER.REMOVE_PRODUCER, {
+      producerId: this._micProducer.id,
+    });
 
     try {
       await this._protoo.request("closeProducer", {
@@ -849,7 +872,9 @@ export default class RoomClient extends EventEmitter {
         producerId: this._micProducer.id,
       });
 
-      this.emit(EVENTS.PRODUCER_PAUSED, { producerId: this._micProducer.id });
+      this.emit(EVENTS.PRODUCER.PRODUCER_PAUSED, {
+        producerId: this._micProducer.id,
+      });
     } catch (error) {
       logger.error("muteMic() | failed: %o", error);
 
@@ -870,7 +895,9 @@ export default class RoomClient extends EventEmitter {
         producerId: this._micProducer.id,
       });
 
-      this.emit(EVENTS.PRODUCER_RESUMED, { producerId: this._micProducer.id });
+      this.emit(EVENTS.PRODUCER.PRODUCER_RESUMED, {
+        producerId: this._micProducer.id,
+      });
     } catch (error) {
       logger.error("unmuteMic() | failed: %o", error);
 
@@ -964,7 +991,7 @@ export default class RoomClient extends EventEmitter {
         codec,
       });
 
-      this.emit(EVENTS.NEW_PRODUCER, {
+      this.emit(EVENTS.PRODUCER.NEW_PRODUCER, {
         id: this._webcamProducer.id,
         deviceLabel: device.label,
         type: this._getWebcamType(device),
@@ -1007,7 +1034,9 @@ export default class RoomClient extends EventEmitter {
 
     this._webcamProducer.close();
 
-    this.emit(EVENTS.REMOVE_PRODUCER, { producerId: this._webcamProducer.id });
+    this.emit(EVENTS.PRODUCER.REMOVE_PRODUCER, {
+      producerId: this._webcamProducer.id,
+    });
 
     try {
       await this._protoo.request("closeProducer", {
@@ -1068,7 +1097,7 @@ export default class RoomClient extends EventEmitter {
 
       await this._webcamProducer.replaceTrack({ track });
 
-      this.emit(EVENTS.SET_PRODUCER_TRACK, {
+      this.emit(EVENTS.PRODUCER.SET_PRODUCER_TRACK, {
         producerId: this._webcamProducer.id,
         track,
       });
@@ -1113,7 +1142,7 @@ export default class RoomClient extends EventEmitter {
 
       await this._webcamProducer.replaceTrack({ track });
 
-      this.emit(EVENTS.SET_PRODUCER_TRACK, {
+      this.emit(EVENTS.PRODUCER.SET_PRODUCER_TRACK, {
         producerId: this._webcamProducer.id,
         track,
       });
@@ -1218,7 +1247,7 @@ export default class RoomClient extends EventEmitter {
         },
       });
 
-      this.emit(EVENTS.NEW_PRODUCER, {
+      this.emit(EVENTS.PRODUCER.NEW_PRODUCER, {
         id: this._shareProducer.id,
         type: "share",
         paused: this._shareProducer.paused,
@@ -1262,7 +1291,9 @@ export default class RoomClient extends EventEmitter {
 
     this._shareProducer.close();
 
-    this.emit(EVENTS.REMOVE_PRODUCER, { producerId: this._shareProducer.id });
+    this.emit(EVENTS.PRODUCER.REMOVE_PRODUCER, {
+      producerId: this._shareProducer.id,
+    });
 
     try {
       await this._protoo.request("closeProducer", {
@@ -1281,13 +1312,13 @@ export default class RoomClient extends EventEmitter {
   async muteAudio() {
     logger.debug("muteAudio()");
 
-    this.emit(EVENTS.AUDIO_MUTED, true);
+    this.emit(EVENTS.MISC.AUDIO_MUTED, true);
   }
 
   async unmuteAudio() {
     logger.debug("unmuteAudio()");
 
-    this.emit(EVENTS.AUDIO_MUTED, false);
+    this.emit(EVENTS.MISC.AUDIO_MUTED, false);
   }
 
   async restartIce() {
@@ -1309,15 +1340,10 @@ export default class RoomClient extends EventEmitter {
 
         await this._recvTransport.restartIce({ iceParameters });
       }
-
-      this.emit(EVENTS.ICE_RESTARTED);
     } catch (error) {
       logger.error("restartIce() | failed:%o", error);
 
-      this.emit(EVENTS.ERROR, {
-        type: "restart-ice-error",
-        text: `ICE restart failed: ${error}`,
-      });
+      throw error;
     }
   }
 
@@ -1354,7 +1380,7 @@ export default class RoomClient extends EventEmitter {
         temporalLayer,
       });
 
-      this.emit(EVENTS.SET_CONSUMER_PREFERRED_LAYERS, {
+      this.emit(EVENTS.CONSUMER.SET_CONSUMER_PREFERRED_LAYERS, {
         consumerId,
         spatialLayer,
         temporalLayer,
@@ -1382,7 +1408,10 @@ export default class RoomClient extends EventEmitter {
         priority,
       });
 
-      this.emit(EVENTS.SET_CONSUMER_PRIORITY, { consumerid, priority });
+      this.emit(EVENTS.CONSUMER.SET_CONSUMER_PRIORITY, {
+        consumerid,
+        priority,
+      });
     } catch (error) {
       logger.error("setConsumerPriority() | failed:%o", error);
 
@@ -1425,7 +1454,7 @@ export default class RoomClient extends EventEmitter {
         appData: { info: "my-chat-DataProducer" },
       });
 
-      this.emit(EVENTS.NEW_DATA_PRODUCER, {
+      this.emit(EVENTS.PRODUCER.NEW_DATA_PRODUCER, {
         id: this._chatDataProducer.id,
         sctpStreamParameters: this._chatDataProducer.sctpStreamParameters,
         label: this._chatDataProducer.label,
@@ -1492,7 +1521,7 @@ export default class RoomClient extends EventEmitter {
         appData: { info: "my-bot-DataProducer" },
       });
 
-      this.emit(EVENTS.NEW_DATA_PRODUCER, {
+      this.emit(EVENTS.PRODUCER.NEW_DATA_PRODUCER, {
         id: this._botDataProducer.id,
         sctpStreamParameters: this._botDataProducer.sctpStreamParameters,
         label: this._botDataProducer.label,
@@ -1597,18 +1626,10 @@ export default class RoomClient extends EventEmitter {
       await this._protoo.request("changeDisplayName", { displayName });
 
       this._displayName = displayName;
-
-      // This event is not needed since the caller can just await on
-      // the call.
-      // this.emit(EVENTS.SET_DISPLAY_NAME, displayName);
     } catch (error) {
       logger.error("changeDisplayName() | failed: %o", error);
 
       throw error;
-      // this.emit(EVENTS.ERROR, {
-      //   type: "change-display-name-error",
-      //   text: `Could not change display name: ${error}`,
-      // });
     }
   }
 
@@ -1970,17 +1991,17 @@ export default class RoomClient extends EventEmitter {
             : undefined,
       });
 
-      this.emit(EVENTS.CONNECTED);
+      this.emit(EVENTS.ROOM.CONNECTED);
 
       this.emit(
-        "new-peers",
+        EVENTS.PEER.NEW_PEERS,
         peers.map((p) => ({ ...p, consumers: [], dataConsumers: [] }))
       );
 
       // Enable mic/webcam.
       if (this._produce) {
         // Set our media capabilities.
-        this.emit(EVENTS.MEDIA_CAPABILITIES, {
+        this.emit(EVENTS.MISC.MEDIA_CAPABILITIES, {
           canSendMic:
             this._mode !== MODES.VIDEO_ONLY &&
             this._mediasoupDevice.canProduce("audio"),
@@ -2040,7 +2061,7 @@ export default class RoomClient extends EventEmitter {
     else if (!this._webcams.has(currentWebcamId))
       this._webcam.device = array[0];
 
-    this.emit(EVENTS.CAN_CHANGE_WEBCAM, this._webcams.size > 1);
+    this.emit(EVENTS.MISC.CAN_CHANGE_WEBCAM, this._webcams.size > 1);
   }
 
   _getWebcamType(device) {
@@ -2063,7 +2084,7 @@ export default class RoomClient extends EventEmitter {
 
       consumer.pause();
 
-      this.emit(EVENTS.CONSUMER_PAUSED, {
+      this.emit(EVENTS.CONSUMER.CONSUMER_PAUSED, {
         consumerId: consumer.id,
         type: "local",
       });
@@ -2085,7 +2106,7 @@ export default class RoomClient extends EventEmitter {
 
       consumer.resume();
 
-      this.emit(EVENTS.CONSUMER_RESUMED, {
+      this.emit(EVENTS.CONSUMER.CONSUMER_RESUMED, {
         consumerId: consumer.id,
         type: "local",
       });

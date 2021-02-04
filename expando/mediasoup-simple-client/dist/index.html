@@ -4,18 +4,81 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Document</title>
+    <style>
+      body {
+        margin: 0;
+        padding: 0;
+      }
+      .container {
+        display: flex;
+        flex-wrap: wrap;
+        height: 100vh;
+        width: 100vw;
+        background-color: #d3d3d3;
+      }
+      .vid {
+        height: 300px;
+        width: 300px;
+        object-fit: contain;
+      }
+      .local {
+        border: #f00 solid 5px;
+      }
+    </style>
   </head>
   <body>
-    <h1>HELLO</h1>
-    <script src="./bundle.js"></script>
+    <div id="main-container" class="container"></div>
+    <script src="./mediasoup-simple-client-bundle.js"></script>
     <script>
-      // let roomClient = new mediasoup.RoomClient({
-      //   roomId: "p6afwjkb",
-      //   peerId: `${(new Date().getTime() / 1000) | 0}`,
-      //   displayName: `${(new Date().getTime() / 1000) | 0}`,
-      //   baseUrl: "ws://localhost:4443",
-      // });
-      // roomClient.join();
+      function addANewVideoElement(track, isLocal) {
+        const newVideoElement = document.createElement("video");
+        newVideoElement.muted = true;
+        newVideoElement.playsInline = true;
+        newVideoElement.autoplay = true;
+        newVideoElement.controls = true;
+        newVideoElement.srcObject = new MediaStream([track]);
+        newVideoElement.classList.add("vid");
+        if (isLocal) {
+          newVideoElement.classList.add("local");
+        }
+        const container = document.getElementById("main-container");
+        container.appendChild(newVideoElement);
+      }
+      (async () => {
+        let roomClient = new mediasoup.RoomClient({
+          roomId: "p6afwjkb",
+          peerId: `${(Math.random() * 1000) | 0}`,
+          displayName: `${(new Date().getTime() / 1000) | 0}`,
+          baseUrl: "ws://localhost:4443",
+          mode: mediasoup.MODES.VIDEO_ONLY,
+          useSimulcast: false,
+        });
+        window.roomClient = roomClient;
+        roomClient.join();
+        roomClient.on(mediasoup.EVENTS.PRODUCER.NEW_PRODUCER, (producer) => {
+          const track = producer.track;
+          // Producers are local tracks
+          addANewVideoElement(track, true);
+        });
+        roomClient.on(mediasoup.EVENTS.CONSUMER.NEW_CONSUMER, (consumer) => {
+          const track = consumer.consumer.track;
+          // Consumers are remote tracks
+          addANewVideoElement(track, false);
+        });
+        console.log("Here's a list of mediasoup events supported.");
+        console.log(mediasoup.EVENTS);
+
+        //Subscribing to all events
+        const eventGroups = Object.keys(mediasoup.EVENTS);
+        for (const group of eventGroups) {
+          let events = Object.keys(mediasoup.EVENTS[group]);
+          for (const ev of events) {
+            roomClient.on(ev, (data) => {
+              console.log(`${group} Event: ${ev}`, data);
+            });
+          }
+        }
+      })();
     </script>
   </body>
 </html>
