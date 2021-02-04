@@ -34,6 +34,46 @@ const SCREEN_SHARING_SVC_ENCODINGS = [{ scalabilityMode: "S3T3", dtx: true }];
 
 const logger = new Logger("RoomClient");
 
+export const EVENTS = {
+  CLOSED: "CLOSED",
+  CONNECTING: "CONNECTING",
+  ERROR: "ERROR",
+  NEW_CONSUMER: "NEW_CONSUMER",
+  NEW_CHAT_MESSAGE: "NEW_CHAT_MESSAGE",
+  NEW_DATA_CONSUMER: "NEW_DATA_CONSUMER",
+  PRODUCER_SCORE: "PRODUCER_SCORE",
+  NEW_PEER: "NEW_PEER",
+  REMOVE_PEER: "REMOVE_PEER",
+  PEER_DISPLAY_NAME_CHANGED: "PEER_DISPLAY_NAME_CHANGED",
+  REMOVE_CONSUMER: "REMOVE_CONSUMER",
+  CONSUMER_PAUSED: "CONSUMER_PAUSED",
+  CONSUMER_RESUMED: "CONSUMER_RESUMED",
+  CONSUMER_LAYERS_CHANGED: "CONSUMER_LAYERS_CHANGED",
+  CONSUMER_SCORE: "CONSUMER_SCORE",
+  REMOVE_DATA_CONSUMER: "REMOVE_DATA_CONSUMER",
+  NEW_PRODUCER: "NEW_PRODUCER",
+  MIC_DISCONNECTED: "MIC_DISCONNECTED",
+  REMOVE_PRODUCER: "REMOVE_PRODUCER",
+  PRODUCER_PAUSED: "PRODUCER_PAUSED",
+  PRODUCER_RESUMED: "PRODUCER_RESUMED",
+  WEBCAM_IN_PROGRESS: "WEBCAM_IN_PROGRESS",
+  NEW_PRODUCER: "NEW_PRODUCER",
+  SET_PRODUCER_TRACK: "SET_PRODUCER_TRACK",
+  SHARE_IN_PROGRESS: "SHARE_IN_PROGRESS",
+  AUDIO_ONLY_IN_PROGRESS: "AUDIO_ONLY_IN_PROGRESS",
+  AUDIO_MUTED: "AUDIO_MUTED",
+  RESTART_ICE_IN_PROGRESS: "RESTART_ICE_IN_PROGRESS",
+  SET_CONSUMER_PREFERRED_LAYERS: "SET_CONSUMER_PREFFERED_LAYERS",
+  SET_CONSUMER_PRIORITY: "SET_CONSUMER_PRIORITY",
+  ADD_DATA_PRODUCER: "ADD_DATA_PRODUCER",
+  SET_DISPLAY_NAME: "SET_DISPLAY_NAME",
+  CONNECTED: "CONNECTED",
+  MEDIA_CAPABILITIES: "MEDIA_CAPABILITIES",
+  CAN_CHANGE_WEBCAM: "CAN_CHANGE_WEBCAM",
+  CONSUMER_PAUSED: "CONSUMER_PAUSED",
+  CONSUMER_RESUMED: "CONSUMER_RESUMED",
+};
+
 function getProtooUrl({ baseUrl, roomId, peerId }) {
   return `${baseUrl}?roomId=${roomId}&peerId=${peerId}`;
 }
@@ -46,12 +86,19 @@ export default class RoomClient extends EventEmitter {
     baseUrl,
     useSimulcast = true,
     forceTcp = false,
+    // If false will not produce
     produce = true,
+    // If false will not consume
     consume = true,
+    // If true H264 will be forced
     forceH264 = false,
+    // If true VP9 will be forced
     forceVP9 = false,
+    // If true SVC will be used, only possible if codec is VP9.
     svc = false,
+    // Weather to use datachannels or not.
     datachannel = false,
+    // If true only audio will be sent / received
     audioOnlyMode = false,
   }) {
     super();
@@ -239,7 +286,7 @@ export default class RoomClient extends EventEmitter {
 
     if (this._recvTransport) this._recvTransport.close();
 
-    this.emit("closed");
+    this.emit(EVENTS.CLOSED);
   }
 
   async join() {
@@ -249,19 +296,19 @@ export default class RoomClient extends EventEmitter {
 
     this._protoo = new protooClient.Peer(protooTransport);
 
-    this.emit("connecting");
+    this.emit(EVENTS.CONNECTED);
 
     this._protoo.on("open", () => this._joinRoom());
 
     this._protoo.on("failed", () => {
-      this.emit("error", {
+      this.emit(EVENTS.ERROR, {
         type: "ws-connection-error",
         text: "WebSocket connection failed",
       });
     });
 
     this._protoo.on("disconnected", () => {
-      this.emit("error", {
+      this.emit(EVENTS.ERROR, {
         type: "ws-disconnected",
         text: "WebSocket disconnected",
       });
@@ -277,7 +324,7 @@ export default class RoomClient extends EventEmitter {
         this._recvTransport = null;
       }
 
-      this.emit("closed");
+      this.emit(EVENTS.CLOSED);
     });
 
     this._protoo.on("close", () => {
@@ -353,7 +400,7 @@ export default class RoomClient extends EventEmitter {
               track: consumer.track,
             };
             this._addConsumerToPeer(peerId, newConsumer);
-            this.emit("new-consumer", {
+            this.emit(EVENTS.NEW_CONSUMER, {
               consumer: newConsumer,
               peerId,
             });
@@ -368,7 +415,7 @@ export default class RoomClient extends EventEmitter {
           } catch (error) {
             logger.error('"newConsumer" request failed:%o', error);
 
-            this.emit("error", {
+            this.emit(EVENTS.ERROR, {
               type: "new-consumer-failed",
               text: `Error creating a Consumer: ${error}`,
             });
@@ -428,7 +475,7 @@ export default class RoomClient extends EventEmitter {
 
               this._dataConsumers.delete(dataConsumer.id);
 
-              this.emit("error", {
+              this.emit(EVENTS.ERROR, {
                 type: "data-consumer-closed",
                 text: "DataConsumer closed",
               });
@@ -437,7 +484,7 @@ export default class RoomClient extends EventEmitter {
             dataConsumer.on("error", (error) => {
               logger.error('DataConsumer "error" event:%o', error);
 
-              this.emit("error", {
+              this.emit(EVENTS.ERROR, {
                 type: "data-consumer-error",
                 text: `DataConsumer error: ${error}`,
               });
@@ -496,7 +543,7 @@ export default class RoomClient extends EventEmitter {
                     break;
                   }
 
-                  this.emit("new-chat-message", {
+                  this.emit(EVENTS.NEW_CHAT_MESSAGE, {
                     sender: sendingPeer,
                     text: message,
                   });
@@ -519,7 +566,7 @@ export default class RoomClient extends EventEmitter {
               protocol: dataConsumer.protocol,
             };
             this._addDataConsumerToPeer(peerId, consumer);
-            this.emit("new-data-consumer", {
+            this.emit(EVENTS.NEW_DATA_CONSUMER, {
               consumer,
               peerId,
             });
@@ -529,7 +576,7 @@ export default class RoomClient extends EventEmitter {
           } catch (error) {
             logger.error('"newDataConsumer" request failed:%o', error);
 
-            this.emit("error", {
+            this.emit(EVENTS.ERROR, {
               type: "data-consumer-error",
               text: `Error creating a DataConsumer: ${error}`,
             });
@@ -553,7 +600,7 @@ export default class RoomClient extends EventEmitter {
         case "producerScore": {
           const { producerId, score } = notification.data;
 
-          this.emit("producer-score", { producerId, score });
+          this.emit(EVENTS.PRODUCER_SCORE, { producerId, score });
 
           break;
         }
@@ -563,7 +610,7 @@ export default class RoomClient extends EventEmitter {
 
           const newPeer = { ...peer, consumers: [], dataConsumers: [] };
           this._addPeer(newPeer);
-          this.emit("new-peer", newPeer);
+          this.emit(EVENTS.NEW_PEER, newPeer);
 
           break;
         }
@@ -572,7 +619,7 @@ export default class RoomClient extends EventEmitter {
           const { peerId } = notification.data;
 
           this._removePeer(peerId);
-          this.emit("remove-peer", { peerId });
+          this.emit(EVENTS.REMOVE_PEER, { peerId });
 
           break;
         }
@@ -583,7 +630,7 @@ export default class RoomClient extends EventEmitter {
           // Update name in the local list.
           const peer = this._peers.filter((p) => p.id === peerId);
           peer.displayName = displayName;
-          this.emit("peer-display-name-changed", { displayName, peerId });
+          this.emit(EVENTS.PEER_DISPLAY_NAME_CHANGED, { displayName, peerId });
 
           break;
         }
@@ -606,7 +653,7 @@ export default class RoomClient extends EventEmitter {
           const { peerId } = consumer.appData;
 
           this._removeConsumerFromPeer(peerId, consumerId);
-          this.emit("remove-consumer", { consumerId, peerId });
+          this.emit(EVENTS.REMOVE_CONSUMER, { consumerId, peerId });
 
           break;
         }
@@ -619,7 +666,7 @@ export default class RoomClient extends EventEmitter {
 
           consumer.pause();
 
-          this.emit("consumer-paused", { consumerId, type: "remote" });
+          this.emit(EVENTS.CONSUMER_PAUSED, { consumerId, type: "remote" });
 
           break;
         }
@@ -632,7 +679,7 @@ export default class RoomClient extends EventEmitter {
 
           consumer.resume();
 
-          this.emit("consumer-resumed", { consumerId, type: "remote" });
+          this.emit(EVENTS.CONSUMER_RESUMED, { consumerId, type: "remote" });
 
           break;
         }
@@ -643,7 +690,7 @@ export default class RoomClient extends EventEmitter {
 
           if (!consumer) break;
 
-          this.emit("consumer-layers-changed", {
+          this.emit(EVENTS.CONSUMER_LAYERS_CHANGED, {
             consumerId,
             spatialLayer,
             temporalLayer,
@@ -655,7 +702,7 @@ export default class RoomClient extends EventEmitter {
         case "consumerScore": {
           const { consumerId, score } = notification.data;
 
-          this.emit("consumer-score", { consumerId, score });
+          this.emit(EVENTS.CONSUMER_SCORE, { consumerId, score });
 
           break;
         }
@@ -672,7 +719,7 @@ export default class RoomClient extends EventEmitter {
           const { peerId } = dataConsumer.appData;
 
           this._removeDataConsumerFromPeer(peerId, dataConsumerId);
-          this.emit("remove-data-consumer", {
+          this.emit(EVENTS.REMOVE_DATA_CONSUMER, {
             dataConsumerId,
             peerId,
           });
@@ -730,7 +777,7 @@ export default class RoomClient extends EventEmitter {
         // 	.find((codec) => codec.mimeType.toLowerCase() === 'audio/pcma')
       });
 
-      this.emit("new-producer", {
+      this.emit(EVENTS.NEW_PRODUCER, {
         id: this._micProducer.id,
         paused: this._micProducer.paused,
         track: this._micProducer.track,
@@ -743,14 +790,14 @@ export default class RoomClient extends EventEmitter {
       });
 
       this._micProducer.on("trackended", () => {
-        this.emit("mic-disconnected");
+        this.emit(EVENTS.MIC_DISCONNECTED);
 
         this.disableMic().catch(() => {});
       });
     } catch (error) {
       logger.error("enableMic() | failed:%o", error);
 
-      this.emit("error", {
+      this.emit(EVENTS.ERROR, {
         type: "mic-error",
         text: `Error enabling microphone: ${error}`,
       });
@@ -766,14 +813,14 @@ export default class RoomClient extends EventEmitter {
 
     this._micProducer.close();
 
-    this.emit("remove-producer", { producerId: this._micProducer.id });
+    this.emit(EVENTS.REMOVE_PRODUCER, { producerId: this._micProducer.id });
 
     try {
       await this._protoo.request("closeProducer", {
         producerId: this._micProducer.id,
       });
     } catch (error) {
-      this.emit("error", {
+      this.emit(EVENTS.ERROR, {
         type: "disable-mic-error",
         text: `Error closing server-side mic Producer: ${error}`,
       });
@@ -792,11 +839,11 @@ export default class RoomClient extends EventEmitter {
         producerId: this._micProducer.id,
       });
 
-      this.emit("producer-paused", { producerId: this._micProducer.id });
+      this.emit(EVENTS.PRODUCER_PAUSED, { producerId: this._micProducer.id });
     } catch (error) {
       logger.error("muteMic() | failed: %o", error);
 
-      this.emit("error", {
+      this.emit(EVENTS.ERROR, {
         type: "mute-mic-error",
         text: `Error pausing server-side mic Producer: ${error}`,
       });
@@ -813,11 +860,11 @@ export default class RoomClient extends EventEmitter {
         producerId: this._micProducer.id,
       });
 
-      this.emit("producer-resumed", { producerId: this._micProducer.id });
+      this.emit(EVENTS.PRODUCER_RESUMED, { producerId: this._micProducer.id });
     } catch (error) {
       logger.error("unmuteMic() | failed: %o", error);
 
-      this.emit("error", {
+      this.emit(EVENTS.ERROR, {
         type: "unmute-mic-error",
         text: `Error resuming server-side mic Producer: ${error}`,
       });
@@ -839,7 +886,7 @@ export default class RoomClient extends EventEmitter {
     let track;
     let device;
 
-    this.emit("webcam-in-progress", true);
+    this.emit(EVENTS.WEBCAM_IN_PROGRESS, true);
 
     try {
       await this._updateWebcams();
@@ -907,7 +954,7 @@ export default class RoomClient extends EventEmitter {
         codec,
       });
 
-      this.emit("new-producer", {
+      this.emit(EVENTS.NEW_PRODUCER, {
         id: this._webcamProducer.id,
         deviceLabel: device.label,
         type: this._getWebcamType(device),
@@ -924,7 +971,7 @@ export default class RoomClient extends EventEmitter {
       });
 
       this._webcamProducer.on("trackended", () => {
-        this.emit("error", {
+        this.emit(EVENTS.ERROR, {
           type: "enable-webcam-error",
           text: "Webcam disconnected!",
         });
@@ -934,7 +981,7 @@ export default class RoomClient extends EventEmitter {
     } catch (error) {
       logger.error("enableWebcam() | failed:%o", error);
 
-      this.emit("error", {
+      this.emit(EVENTS.ERROR, {
         type: "enable-webcam-error",
         text: `Error enabling webcam: ${error}`,
       });
@@ -942,7 +989,7 @@ export default class RoomClient extends EventEmitter {
       if (track) track.stop();
     }
 
-    this.emit("webcam-in-progress", false);
+    this.emit(EVENTS.WEBCAM_IN_PROGRESS, false);
   }
 
   async disableWebcam() {
@@ -952,14 +999,14 @@ export default class RoomClient extends EventEmitter {
 
     this._webcamProducer.close();
 
-    this.emit("remove-producer", { producerId: this._webcamProducer.id });
+    this.emit(EVENTS.REMOVE_PRODUCER, { producerId: this._webcamProducer.id });
 
     try {
       await this._protoo.request("closeProducer", {
         producerId: this._webcamProducer.id,
       });
     } catch (error) {
-      this.emit("error", {
+      this.emit(EVENTS.ERROR, {
         type: "disable-webcam-error",
         text: `Error closing server-side webcam Producer: ${error}`,
       });
@@ -971,7 +1018,7 @@ export default class RoomClient extends EventEmitter {
   async changeWebcam() {
     logger.debug("changeWebcam()");
 
-    this.emit("webcam-in-progress", true);
+    this.emit(EVENTS.WEBCAM_IN_PROGRESS, true);
 
     try {
       await this._updateWebcams();
@@ -1015,26 +1062,26 @@ export default class RoomClient extends EventEmitter {
 
       await this._webcamProducer.replaceTrack({ track });
 
-      this.emit("set-producer-track", {
+      this.emit(EVENTS.SET_PRODUCER_TRACK, {
         producerId: this._webcamProducer.id,
         track,
       });
     } catch (error) {
       logger.error("changeWebcam() | failed: %o", error);
 
-      this.emit("error", {
+      this.emit(EVENTS.ERROR, {
         type: "change-webcam-error",
         text: `Could not change webcam: ${error}`,
       });
     }
 
-    this.emit("webcam-in-progress", false);
+    this.emit(EVENTS.WEBCAM_IN_PROGRESS, false);
   }
 
   async changeWebcamResolution() {
     logger.debug("changeWebcamResolution()");
 
-    this.emit("webcam-in-progress", true);
+    this.emit(EVENTS.WEBCAM_IN_PROGRESS, true);
 
     try {
       switch (this._webcam.resolution) {
@@ -1064,20 +1111,20 @@ export default class RoomClient extends EventEmitter {
 
       await this._webcamProducer.replaceTrack({ track });
 
-      this.emit("set-producer-track", {
+      this.emit(EVENTS.SET_PRODUCER_TRACK, {
         producerId: this._webcamProducer.id,
         track,
       });
     } catch (error) {
       logger.error("changeWebcamResolution() | failed: %o", error);
 
-      this.emit("error", {
+      this.emit(EVENTS.ERROR, {
         type: "change-webcam-resolution-error",
         text: `Could not change webcam resolution: ${error}`,
       });
     }
 
-    this.emit("webcam-in-progress", false);
+    this.emit(EVENTS.WEBCAM_IN_PROGRESS, false);
   }
 
   async enableShare() {
@@ -1094,7 +1141,7 @@ export default class RoomClient extends EventEmitter {
 
     let track;
 
-    this.emit("share-in-progress", true);
+    this.emit(EVENTS.SHARE_IN_PROGRESS, true);
 
     try {
       logger.debug("enableShare() | calling getUserMedia()");
@@ -1113,7 +1160,7 @@ export default class RoomClient extends EventEmitter {
 
       // May mean cancelled (in some implementations).
       if (!stream) {
-        this.emit("share-in-progress", false);
+        this.emit(EVENTS.SHARE_IN_PROGRESS, false);
 
         return;
       }
@@ -1173,7 +1220,7 @@ export default class RoomClient extends EventEmitter {
         },
       });
 
-      this.emit("new-producer", {
+      this.emit(EVENTS.NEW_PRODUCER, {
         id: this._shareProducer.id,
         type: "share",
         paused: this._shareProducer.paused,
@@ -1189,7 +1236,7 @@ export default class RoomClient extends EventEmitter {
       });
 
       this._shareProducer.on("trackended", () => {
-        this.emit("error", {
+        this.emit(EVENTS.ERROR, {
           type: "screen-share-error",
           text: "Share disconnected!",
         });
@@ -1200,7 +1247,7 @@ export default class RoomClient extends EventEmitter {
       logger.error("enableShare() | failed:%o", error);
 
       if (error.name !== "NotAllowedError") {
-        this.emit("error", {
+        this.emit(EVENTS.ERROR, {
           type: "share-error",
           text: `error sharing: ${error}`,
         });
@@ -1209,7 +1256,7 @@ export default class RoomClient extends EventEmitter {
       if (track) track.stop();
     }
 
-    this.emit("share-in-progress", false);
+    this.emit(EVENTS.SHARE_IN_PROGRESS, false);
   }
 
   async disableShare() {
@@ -1219,14 +1266,14 @@ export default class RoomClient extends EventEmitter {
 
     this._shareProducer.close();
 
-    this.emit("remove-producer", { producerId: this._shareProducer.id });
+    this.emit(EVENTS.REMOVE_PRODUCER, { producerId: this._shareProducer.id });
 
     try {
       await this._protoo.request("closeProducer", {
         producerId: this._shareProducer.id,
       });
     } catch (error) {
-      this.emit("error", {
+      this.emit(EVENTS.ERROR, {
         type: "disable-share-error",
         text: `Error closing server-side share Producer: ${error}`,
       });
@@ -1238,7 +1285,7 @@ export default class RoomClient extends EventEmitter {
   async enableAudioOnly() {
     logger.debug("enableAudioOnly()");
 
-    this.emit("audio-only-in-progress", true);
+    this.emit(EVENTS.AUDIO_ONLY_IN_PROGRESS, true);
 
     this.disableWebcam();
 
@@ -1248,15 +1295,15 @@ export default class RoomClient extends EventEmitter {
       this._pauseConsumer(consumer);
     }
 
-    this.emit("audio-only-state", true);
+    this.emit(EVENTS.AUDIO_ONLY_STATE, true);
 
-    this.emit("audio-only-in-progress", false);
+    this.emit(EVENTS.AUDIO_ONLY_IN_PROGRESS, false);
   }
 
   async disableAudioOnly() {
     logger.debug("disableAudioOnly()");
 
-    this.emit("audio-only-in-progress", true);
+    this.emit(EVENTS.AUDIO_ONLY_IN_PROGRESS, true);
 
     if (
       !this._webcamProducer &&
@@ -1272,27 +1319,27 @@ export default class RoomClient extends EventEmitter {
       this._resumeConsumer(consumer);
     }
 
-    this.emit("audio-only-state", false);
+    this.emit(EVENTS.AUDIO_ONLY_STATE, false);
 
-    this.emit("audio-only-in-progress", false);
+    this.emit(EVENTS.AUDIO_ONLY_IN_PROGRESS, false);
   }
 
   async muteAudio() {
     logger.debug("muteAudio()");
 
-    this.emit("audio-muted", true);
+    this.emit(EVENTS.AUDIO_MUTED, true);
   }
 
   async unmuteAudio() {
     logger.debug("unmuteAudio()");
 
-    this.emit("audio-muted", false);
+    this.emit(EVENTS.AUDIO_MUTED, false);
   }
 
   async restartIce() {
     logger.debug("restartIce()");
 
-    this.emit("restart-ice-in-progress", true);
+    this.emit(EVENTS.RESTART_ICE_IN_PROGRESS, true);
 
     try {
       if (this._sendTransport) {
@@ -1311,17 +1358,17 @@ export default class RoomClient extends EventEmitter {
         await this._recvTransport.restartIce({ iceParameters });
       }
 
-      this.emit("ice-restarted");
+      this.emit(EVENTS.ICE_RESTARTED);
     } catch (error) {
       logger.error("restartIce() | failed:%o", error);
 
-      this.emit("error", {
+      this.emit(EVENTS.ERROR, {
         type: "restart-ice-error",
         text: `ICE restart failed: ${error}`,
       });
     }
 
-    this.emit("restart-ice-in-progress", true);
+    this.emit(EVENTS.RESTART_ICE_IN_PROGRESS, true);
   }
 
   async setMaxSendingSpatialLayer(spatialLayer) {
@@ -1335,7 +1382,7 @@ export default class RoomClient extends EventEmitter {
     } catch (error) {
       logger.error("setMaxSendingSpatialLayer() | failed:%o", error);
 
-      this.emit("error", {
+      this.emit(EVENTS.ERROR, {
         type: "set-max-sending-spatial-layer-error",
         text: `Error setting max sending video spatial layer: ${error}`,
       });
@@ -1357,7 +1404,7 @@ export default class RoomClient extends EventEmitter {
         temporalLayer,
       });
 
-      this.emit("set-consumer-preferred-layers", {
+      this.emit(EVENTS.SET_CONSUMER_PREFERRED_LAYERS, {
         consumerId,
         spatialLayer,
         temporalLayer,
@@ -1365,7 +1412,7 @@ export default class RoomClient extends EventEmitter {
     } catch (error) {
       logger.error("setConsumerPreferredLayers() | failed:%o", error);
 
-      this.emit("error", {
+      this.emit(EVENTS.ERROR, {
         type: "set-consumer-preffered-layers-error",
         text: `Error setting Consumer preferred layers: ${error}`,
       });
@@ -1385,11 +1432,11 @@ export default class RoomClient extends EventEmitter {
         priority,
       });
 
-      this.emit("set-consumer-priority", { consumerid, priority });
+      this.emit(EVENTS.SET_CONSUMER_PRIORITY, { consumerid, priority });
     } catch (error) {
       logger.error("setConsumerPriority() | failed:%o", error);
 
-      this.emit("error", {
+      this.emit(EVENTS.ERROR, {
         type: "set-consumer-priority-error",
         text: `Error setting Consumer priority: ${error}`,
       });
@@ -1404,7 +1451,7 @@ export default class RoomClient extends EventEmitter {
     } catch (error) {
       logger.error("requestConsumerKeyFrame() | failed:%o", error);
 
-      this.emit("error", {
+      this.emit(EVENTS.ERROR, {
         type: "request-consumer-keyframe-error",
         text: `Error requesting key frame for Consumer: ${error}`,
       });
@@ -1430,7 +1477,7 @@ export default class RoomClient extends EventEmitter {
         appData: { info: "my-chat-DataProducer" },
       });
 
-      this.emit("add-data-producer", {
+      this.emit(EVENTS.ADD_DATA_PRODUCER, {
         id: this._chatDataProducer.id,
         sctpStreamParameters: this._chatDataProducer.sctpStreamParameters,
         label: this._chatDataProducer.label,
@@ -1450,7 +1497,7 @@ export default class RoomClient extends EventEmitter {
 
         this._chatDataProducer = null;
 
-        this.emit("error", {
+        this.emit(EVENTS.ERROR, {
           type: "chat-data-producer-error",
           text: "Chat DataProducer closed",
         });
@@ -1459,7 +1506,7 @@ export default class RoomClient extends EventEmitter {
       this._chatDataProducer.on("error", (error) => {
         logger.error('chat DataProducer "error" event:%o', error);
 
-        this.emit("error", {
+        this.emit(EVENTS.ERROR, {
           type: "chat-data-producer-error",
           text: `Chat DataProducer error: ${error}`,
         });
@@ -1471,7 +1518,7 @@ export default class RoomClient extends EventEmitter {
     } catch (error) {
       logger.error("enableChatDataProducer() | failed:%o", error);
 
-      this.emit("error", {
+      this.emit(EVENTS.ERROR, {
         type: "chat-data-producer-error",
         text: `Error enabling chat DataProducer: ${error}`,
       });
@@ -1499,7 +1546,7 @@ export default class RoomClient extends EventEmitter {
         appData: { info: "my-bot-DataProducer" },
       });
 
-      this.emit("add-data-producer", {
+      this.emit(EVENTS.ADD_DATA_PRODUCER, {
         id: this._botDataProducer.id,
         sctpStreamParameters: this._botDataProducer.sctpStreamParameters,
         label: this._botDataProducer.label,
@@ -1519,7 +1566,7 @@ export default class RoomClient extends EventEmitter {
 
         this._botDataProducer = null;
 
-        this.emit("error", {
+        this.emit(EVENTS.ERROR, {
           type: "bot-data-producer-error",
           text: "Bot DataProducer closed",
         });
@@ -1528,7 +1575,7 @@ export default class RoomClient extends EventEmitter {
       this._botDataProducer.on("error", (error) => {
         logger.error('bot DataProducer "error" event:%o', error);
 
-        this.emit("error", {
+        this.emit(EVENTS.ERROR, {
           type: "bot-data-producer-error",
           text: `Bot DataProducer error: ${error}`,
         });
@@ -1540,7 +1587,7 @@ export default class RoomClient extends EventEmitter {
     } catch (error) {
       logger.error("enableBotDataProducer() | failed:%o", error);
 
-      this.emit("error", {
+      this.emit(EVENTS.ERROR, {
         type: "bot-data-producer-error",
         text: `Error enabling bot DataProducer: ${error}`,
       });
@@ -1553,7 +1600,7 @@ export default class RoomClient extends EventEmitter {
     logger.debug('sendChatMessage() [text:"%s]', text);
 
     if (!this._chatDataProducer) {
-      this.emit("error", {
+      this.emit(EVENTS.ERROR, {
         type: "send-chat-message-error",
         text: "No chat DataProducer",
       });
@@ -1566,7 +1613,7 @@ export default class RoomClient extends EventEmitter {
     } catch (error) {
       logger.error("chat DataProducer.send() failed:%o", error);
 
-      this.emit("error", {
+      this.emit(EVENTS.ERROR, {
         type: "send-chat-message-error",
         text: `chat DataProducer.send() failed: ${error}`,
       });
@@ -1577,7 +1624,7 @@ export default class RoomClient extends EventEmitter {
     logger.debug('sendBotMessage() [text:"%s]', text);
 
     if (!this._botDataProducer) {
-      this.emit("error", {
+      this.emit(EVENTS.ERROR, {
         type: "send-bot-message-error",
         text: "No bot DataProducer",
       });
@@ -1590,7 +1637,7 @@ export default class RoomClient extends EventEmitter {
     } catch (error) {
       logger.error("bot DataProducer.send() failed:%o", error);
 
-      this.emit("error", {
+      this.emit(EVENTS.ERROR, {
         type: "send-bot-message-error",
         text: `bot DataProducer.send() failed: ${error}`,
       });
@@ -1605,11 +1652,11 @@ export default class RoomClient extends EventEmitter {
 
       this._displayName = displayName;
 
-      this.emit("set-display-name", displayName);
+      this.emit(EVENTS.SET_DISPLAY_NAME, displayName);
     } catch (error) {
       logger.error("changeDisplayName() | failed: %o", error);
 
-      this.emit("error", {
+      this.emit(EVENTS.ERROR, {
         type: "change-display-name-error",
         text: `Could not change display name: ${error}`,
       });
@@ -1762,7 +1809,7 @@ export default class RoomClient extends EventEmitter {
     } catch (error) {
       logger.error("applyNetworkThrottle() | failed:%o", error);
 
-      this.emit("error", {
+      this.emit(EVENTS.ERROR, {
         type: "apply-network-throttle-error",
         text: `Error applying network throttle: ${error}`,
       });
@@ -1778,7 +1825,7 @@ export default class RoomClient extends EventEmitter {
       if (!silent) {
         logger.error("resetNetworkThrottle() | failed:%o", error);
 
-        this.emit("error", {
+        this.emit(EVENTS.ERROR, {
           type: "reset-network-throttle-error",
           text: `Error resetting network throttle: ${error}`,
         });
@@ -1974,7 +2021,7 @@ export default class RoomClient extends EventEmitter {
             : undefined,
       });
 
-      this.emit("connected");
+      this.emit(EVENTS.CONNECTED);
 
       this.emit(
         "new-peers",
@@ -1984,7 +2031,7 @@ export default class RoomClient extends EventEmitter {
       // Enable mic/webcam.
       if (this._produce) {
         // Set our media capabilities.
-        this.emit("media-capabilities", {
+        this.emit(EVENTS.MEDIA_CAPABILITIES, {
           canSendMic: this._mediasoupDevice.canProduce("audio"),
           canSendWebcam: this._mediasoupDevice.canProduce("video"),
         });
@@ -2004,7 +2051,7 @@ export default class RoomClient extends EventEmitter {
     } catch (error) {
       logger.error("_joinRoom() failed:%o", error);
 
-      this.emit("error", {
+      this.emit(EVENTS.ERROR, {
         type: "join-room-error",
         text: `Could not join the room: ${error}`,
       });
@@ -2041,7 +2088,7 @@ export default class RoomClient extends EventEmitter {
     else if (!this._webcams.has(currentWebcamId))
       this._webcam.device = array[0];
 
-    this.emit("can-change-webcam", this._webcams.size > 1);
+    this.emit(EVENTS.CAN_CHANGE_WEBCAM, this._webcams.size > 1);
   }
 
   _getWebcamType(device) {
@@ -2064,11 +2111,14 @@ export default class RoomClient extends EventEmitter {
 
       consumer.pause();
 
-      this.emit("consumer-paused", { consumerId: consumer.id, type: "local" });
+      this.emit(EVENTS.CONSUMER_PAUSED, {
+        consumerId: consumer.id,
+        type: "local",
+      });
     } catch (error) {
       logger.error("_pauseConsumer() | failed:%o", error);
 
-      this.emit("error", {
+      this.emit(EVENTS.ERROR, {
         type: "pause-consumer-error",
         text: `Error pausing Consumer: ${error}`,
       });
@@ -2083,11 +2133,14 @@ export default class RoomClient extends EventEmitter {
 
       consumer.resume();
 
-      this.emit("consumer-resumed", { consumerId: consumer.id, type: "local" });
+      this.emit(EVENTS.CONSUMER_RESUMED, {
+        consumerId: consumer.id,
+        type: "local",
+      });
     } catch (error) {
       logger.error("_resumeConsumer() | failed:%o", error);
 
-      this.emit("error", {
+      this.emit(EVENTS.ERROR, {
         type: "resume-consumer-error",
         text: `Error resuming Consumer: ${error}`,
       });
