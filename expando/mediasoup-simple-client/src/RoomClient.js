@@ -74,6 +74,12 @@ export const EVENTS = {
   CONSUMER_RESUMED: "CONSUMER_RESUMED",
 };
 
+export const MODES = {
+  AUDIO_AND_VIDEO: "AV",
+  AUDIO_ONLY: "A",
+  VIDEO_ONLY: "V",
+};
+
 function getProtooUrl({ baseUrl, roomId, peerId }) {
   return `${baseUrl}?roomId=${roomId}&peerId=${peerId}`;
 }
@@ -98,8 +104,8 @@ export default class RoomClient extends EventEmitter {
     svc = false,
     // Weather to use datachannels or not.
     datachannel = false,
-    // If true only audio will be sent / received
-    audioOnlyMode = false,
+    // set mode of operation.
+    mode = MODES.AUDIO_AND_VIDEO,
   }) {
     super();
     logger.debug(
@@ -111,8 +117,7 @@ export default class RoomClient extends EventEmitter {
 
     this._roomId = roomId;
 
-    this.audioOnlyMode = audioOnlyMode;
-
+    this._mode = mode;
     // Closed flag.
     // @type {Boolean}
     this._closed = false;
@@ -360,6 +365,15 @@ export default class RoomClient extends EventEmitter {
             producerPaused,
           } = request.data;
 
+          if (type === "video" && this._mode === MODES.AUDIO_ONLY) {
+            reject(403, "Can't accept video in audio only mode.");
+            break;
+          }
+          if (type === "audio" && this._mode === MODES.VIDEO_ONLY) {
+            reject(403, "Can't accept audio in video only mode.");
+            break;
+          }
+
           try {
             const consumer = await this._recvTransport.consume({
               id,
@@ -408,10 +422,6 @@ export default class RoomClient extends EventEmitter {
             // We are ready. Answer the protoo request so the server will
             // resume this Consumer (which was paused for now if video).
             accept();
-
-            // If audio-only mode is enabled, pause it.
-            if (consumer.kind === "video" && this.audioOnlyMode)
-              this._pauseConsumer(consumer);
           } catch (error) {
             logger.error('"newConsumer" request failed:%o', error);
 
@@ -747,6 +757,8 @@ export default class RoomClient extends EventEmitter {
   async enableMic() {
     logger.debug("enableMic()");
 
+    if (this._mode === MODES.VIDEO_ONLY) return;
+
     if (this._micProducer) return;
 
     if (!this._mediasoupDevice.canProduce("audio")) {
@@ -873,6 +885,8 @@ export default class RoomClient extends EventEmitter {
 
   async enableWebcam() {
     logger.debug("enableWebcam()");
+
+    if (this._mode === MODES.AUDIO_ONLY) return;
 
     if (this._webcamProducer) return;
     else if (this._shareProducer) await this.disableShare();
@@ -1129,6 +1143,8 @@ export default class RoomClient extends EventEmitter {
 
   async enableShare() {
     logger.debug("enableShare()");
+
+    if (this._mode === MODES.AUDIO_ONLY) return;
 
     if (this._shareProducer) return;
     else if (this._webcamProducer) await this.disableWebcam();
@@ -1463,9 +1479,7 @@ export default class RoomClient extends EventEmitter {
 
     if (!this._useDataChannel) return;
 
-    // NOTE: Should enable this code but it's useful for testing.
-    // if (this._chatDataProducer)
-    // 	return;
+    if (this._chatDataProducer) return;
 
     try {
       // Create chat DataProducer.
@@ -1532,9 +1546,7 @@ export default class RoomClient extends EventEmitter {
 
     if (!this._useDataChannel) return;
 
-    // NOTE: Should enable this code but it's useful for testing.
-    // if (this._botDataProducer)
-    // 	return;
+    if (this._botDataProducer) return;
 
     try {
       // Create chat DataProducer.
@@ -1845,11 +1857,11 @@ export default class RoomClient extends EventEmitter {
 
       await this._mediasoupDevice.load({ routerRtpCapabilities });
 
-      // NOTE: Stuff to play remote audios due to browsers' new autoplay policy.
-      //
-      // Just get access to the mic and DO NOT close the mic track for a while.
-      // Super hack!
-      {
+      if (this._mode !== MODES.VIDEO_ONLY) {
+        // NOTE: Stuff to play remote audios due to browsers' new autoplay policy.
+        //
+        // Just get access to the mic and DO NOT close the mic track for a while.
+        // Super hack!
         const stream = await navigator.mediaDevices.getUserMedia({
           audio: true,
         });
@@ -2036,7 +2048,6 @@ export default class RoomClient extends EventEmitter {
           canSendWebcam: this._mediasoupDevice.canProduce("video"),
         });
 
-        //TODO: Need audio/video enable flags in constructor
         this.enableMic();
 
         this.enableWebcam();

@@ -1,3 +1,3 @@
-import RoomClient, { EVENTS } from "./RoomClient";
+import RoomClient, { EVENTS, MODES } from "./RoomClient";
 
-export { RoomClient, EVENTS };
+export { RoomClient, EVENTS, MODES };
