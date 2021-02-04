@@ -516,9 +516,6 @@ export default class RoomClient extends EventEmitter {
                 dataConsumer.sctpStreamParameters.streamId
               );
 
-              // TODO: For debugging.
-              window.DC_MESSAGE = message;
-
               if (message instanceof ArrayBuffer) {
                 const view = new DataView(message);
                 const number = view.getUint32();
@@ -833,7 +830,10 @@ export default class RoomClient extends EventEmitter {
         text: `Error enabling microphone: ${error}`,
       });
 
-      if (track) track.stop();
+      if (track) {
+        track.stop();
+        track.onended && track.onended();
+      }
     }
   }
 
@@ -1023,7 +1023,10 @@ export default class RoomClient extends EventEmitter {
         text: `Error enabling webcam: ${error}`,
       });
 
-      if (track) track.stop();
+      if (track) {
+        track.stop();
+        track.onended && track.onended();
+      }
     }
   }
 
@@ -1083,6 +1086,8 @@ export default class RoomClient extends EventEmitter {
       // Closing the current video track before asking for a new one (mobiles do not like
       // having both front/back cameras open at the same time).
       this._webcamProducer.track.stop();
+      this._webcamProducer.track.onended &&
+        this._webcamProducer.track.onended();
 
       logger.debug("changeWebcam() | calling getUserMedia()");
 
@@ -1130,6 +1135,12 @@ export default class RoomClient extends EventEmitter {
       }
 
       logger.debug("changeWebcamResolution() | calling getUserMedia()");
+
+      // Closing the current video track before asking for a new one (mobiles do not like
+      // having both front/back cameras open at the same time).
+      this._webcamProducer.track.stop();
+      this._webcamProducer.track.onended &&
+        this._webcamProducer.track.onended();
 
       const stream = await navigator.mediaDevices.getUserMedia({
         video: {
@@ -1280,7 +1291,10 @@ export default class RoomClient extends EventEmitter {
         });
       }
 
-      if (track) track.stop();
+      if (track) {
+        track.stop();
+        track.onended && track.onended();
+      }
     }
   }
 

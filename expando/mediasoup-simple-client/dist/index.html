@@ -44,6 +44,7 @@
         const container = document.getElementById("main-container");
         container.appendChild(newVideoElement);
       }
+
       (async () => {
         let roomClient = new mediasoup.RoomClient({
           roomId: "p6afwjkb",
@@ -51,7 +52,8 @@
           displayName: `${(new Date().getTime() / 1000) | 0}`,
           baseUrl: "ws://localhost:4443",
           mode: mediasoup.MODES.VIDEO_ONLY,
-          useSimulcast: false,
+          useSimulcast: true,
+          forceH264: true,
         });
         window.roomClient = roomClient;
         roomClient.join();
