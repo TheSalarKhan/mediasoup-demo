@@ -56,7 +56,7 @@
           useSimulcast: true,
           forceH264: true,
         });
-        roomClient.join();
+        await roomClient.join();
         // Listen for events on 'PRODUCER's. Local tracks.
         roomClient.on(mediasoup.EVENTS.PRODUCER.NEW_PRODUCER, (producer) => {
           const track = producer.track;
