@@ -32,7 +32,7 @@
     <script>
       function addANewVideoElement(track, isLocal) {
         const newVideoElement = document.createElement("video");
-        newVideoElement.muted = true;
+        newVideoElement.muted = isLocal ? true : false;
         newVideoElement.playsInline = true;
         newVideoElement.autoplay = true;
         newVideoElement.controls = true;
@@ -52,7 +52,7 @@
           peerId: `${(Math.random() * 1000) | 0}`,
           displayName: `${(new Date().getTime() / 1000) | 0}`,
           baseUrl: "ws://localhost:4443",
-          mode: mediasoup.MODES.VIDEO_ONLY,
+          mode: mediasoup.MODES.AUDIO_AND_VIDEO,
           useSimulcast: true,
           forceH264: true,
         });
@@ -63,7 +63,7 @@
           // Producers are local tracks
           addANewVideoElement(track, true);
         });
-        // Listen for events on 'CONSUMERS's. Local tracks.
+        // Listen for events on 'CONSUMERS's. Remote tracks.
         roomClient.on(mediasoup.EVENTS.CONSUMER.NEW_CONSUMER, (consumer) => {
           const track = consumer.consumer.track;
           // Consumers are remote tracks

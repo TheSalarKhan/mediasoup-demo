@@ -206,10 +206,6 @@ export default class RoomClient extends EventEmitter {
     // @type {mediasoupClient.DataProducer}
     this._chatDataProducer = null;
 
-    // Local bot DataProducer.
-    // @type {mediasoupClient.DataProducer}
-    this._botDataProducer = null;
-
     // mediasoup Consumers.
     // @type {Map<String, mediasoupClient.Consumer>}
     this._consumers = new Map();
@@ -311,7 +307,7 @@ export default class RoomClient extends EventEmitter {
 
     this._protoo = new protooClient.Peer(protooTransport);
 
-    this.emit(EVENTS.ROOM.CONNECTED);
+    this.emit(EVENTS.ROOM.CONNECTING);
 
     this._protoo.on("open", () => this._joinRoom());
 
@@ -1518,73 +1514,6 @@ export default class RoomClient extends EventEmitter {
     }
   }
 
-  async enableBotDataProducer() {
-    logger.debug("enableBotDataProducer()");
-
-    if (!this._useDataChannel) return;
-
-    if (this._botDataProducer) return;
-
-    try {
-      // Create chat DataProducer.
-      this._botDataProducer = await this._sendTransport.produceData({
-        ordered: false,
-        maxPacketLifeTime: 2000,
-        label: "bot",
-        priority: "medium",
-        appData: { info: "my-bot-DataProducer" },
-      });
-
-      this.emit(EVENTS.PRODUCER.NEW_DATA_PRODUCER, {
-        id: this._botDataProducer.id,
-        sctpStreamParameters: this._botDataProducer.sctpStreamParameters,
-        label: this._botDataProducer.label,
-        protocol: this._botDataProducer.protocol,
-      });
-
-      this._botDataProducer.on("transportclose", () => {
-        this._botDataProducer = null;
-      });
-
-      this._botDataProducer.on("open", () => {
-        logger.debug('bot DataProducer "open" event');
-      });
-
-      this._botDataProducer.on("close", () => {
-        logger.error('bot DataProducer "close" event');
-
-        this._botDataProducer = null;
-
-        this.emit(EVENTS.ERROR, {
-          type: "bot-data-producer-error",
-          text: "Bot DataProducer closed",
-        });
-      });
-
-      this._botDataProducer.on("error", (error) => {
-        logger.error('bot DataProducer "error" event:%o', error);
-
-        this.emit(EVENTS.ERROR, {
-          type: "bot-data-producer-error",
-          text: `Bot DataProducer error: ${error}`,
-        });
-      });
-
-      this._botDataProducer.on("bufferedamountlow", () => {
-        logger.debug('bot DataProducer "bufferedamountlow" event');
-      });
-    } catch (error) {
-      logger.error("enableBotDataProducer() | failed:%o", error);
-
-      this.emit(EVENTS.ERROR, {
-        type: "bot-data-producer-error",
-        text: `Error enabling bot DataProducer: ${error}`,
-      });
-
-      throw error;
-    }
-  }
-
   async sendChatMessage(text) {
     logger.debug('sendChatMessage() [text:"%s]', text);
 
@@ -1605,30 +1534,6 @@ export default class RoomClient extends EventEmitter {
       this.emit(EVENTS.ERROR, {
         type: "send-chat-message-error",
         text: `chat DataProducer.send() failed: ${error}`,
-      });
-    }
-  }
-
-  async sendBotMessage(text) {
-    logger.debug('sendBotMessage() [text:"%s]', text);
-
-    if (!this._botDataProducer) {
-      this.emit(EVENTS.ERROR, {
-        type: "send-bot-message-error",
-        text: "No bot DataProducer",
-      });
-
-      return;
-    }
-
-    try {
-      this._botDataProducer.send(text);
-    } catch (error) {
-      logger.error("bot DataProducer.send() failed:%o", error);
-
-      this.emit(EVENTS.ERROR, {
-        type: "send-bot-message-error",
-        text: `bot DataProducer.send() failed: ${error}`,
       });
     }
   }
@@ -1703,18 +1608,6 @@ export default class RoomClient extends EventEmitter {
     logger.debug("getChatDataProducerRemoteStats()");
 
     const dataProducer = this._chatDataProducer;
-
-    if (!dataProducer) return;
-
-    return this._protoo.request("getDataProducerStats", {
-      dataProducerId: dataProducer.id,
-    });
-  }
-
-  async getBotDataProducerRemoteStats() {
-    logger.debug("getBotDataProducerRemoteStats()");
-
-    const dataProducer = this._botDataProducer;
 
     if (!dataProducer) return;
 
@@ -2031,7 +1924,6 @@ export default class RoomClient extends EventEmitter {
         this._sendTransport.on("connectionstatechange", (connectionState) => {
           if (connectionState === "connected") {
             this.enableChatDataProducer();
-            this.enableBotDataProducer();
           }
         });
       }
