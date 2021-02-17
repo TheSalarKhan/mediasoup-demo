@@ -1319,18 +1319,6 @@ export default class RoomClient extends EventEmitter {
     this._shareProducer = null;
   }
 
-  async muteAudio() {
-    logger.debug("muteAudio()");
-
-    this.emit(EVENTS.MISC.AUDIO_MUTED, true);
-  }
-
-  async unmuteAudio() {
-    logger.debug("unmuteAudio()");
-
-    this.emit(EVENTS.MISC.AUDIO_MUTED, false);
-  }
-
   async restartIce() {
     logger.debug("restartIce()");
 
