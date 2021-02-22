@@ -3,7 +3,6 @@ const protoo = require("protoo-server");
 const throttle = require("@sitespeed.io/throttle");
 const Logger = require("./Logger");
 const config = require("../config");
-const Bot = require("./Bot");
 
 const logger = new Logger("Room");
 
@@ -43,24 +42,15 @@ class Room extends EventEmitter {
       interval: 800,
     });
 
-    const bot = await Bot.create({ mediasoupRouter });
-
     return new Room({
       roomId,
       protooRoom,
       mediasoupRouter,
       audioLevelObserver,
-      bot,
     });
   }
 
-  constructor({
-    roomId,
-    protooRoom,
-    mediasoupRouter,
-    audioLevelObserver,
-    bot,
-  }) {
+  constructor({ roomId, protooRoom, mediasoupRouter, audioLevelObserver }) {
     super();
     this.setMaxListeners(Infinity);
 
@@ -98,10 +88,6 @@ class Room extends EventEmitter {
     // @type {mediasoup.AudioLevelObserver}
     this._audioLevelObserver = audioLevelObserver;
 
-    // DataChannel bot.
-    // @type {Bot}
-    this._bot = bot;
-
     // Network throttled.
     // @type {Boolean}
     this._networkThrottled = false;
@@ -111,7 +97,6 @@ class Room extends EventEmitter {
 
     // For debugging.
     global.audioLevelObserver = this._audioLevelObserver;
-    global.bot = this._bot;
   }
 
   /**
@@ -127,9 +112,6 @@ class Room extends EventEmitter {
 
     // Close the mediasoup Router.
     this._mediasoupRouter.close();
-
-    // Close the Bot.
-    this._bot.close();
 
     // Emit 'close' event.
     this.emit("close");
@@ -796,8 +778,6 @@ class Room extends EventEmitter {
 
           // Create DataConsumers for existing DataProducers.
           for (const dataProducer of joinedPeer.data.dataProducers.values()) {
-            if (dataProducer.label === "bot") continue;
-
             this._createDataConsumer({
               dataConsumerPeer: peer,
               dataProducerPeer: joinedPeer,
@@ -805,13 +785,6 @@ class Room extends EventEmitter {
             });
           }
         }
-
-        // Create DataConsumers for bot DataProducer.
-        this._createDataConsumer({
-          dataConsumerPeer: peer,
-          dataProducerPeer: null,
-          dataProducer: this._bot.dataProducer,
-        });
 
         // Notify the new Peer to all other Peers.
         for (const otherPeer of this._getJoinedPeers({ excludePeer: peer })) {
@@ -1205,16 +1178,6 @@ class Room extends EventEmitter {
 
             break;
           }
-
-          case "bot": {
-            // Pass it to the bot.
-            this._bot.handlePeerDataProducer({
-              dataProducerId: dataProducer.id,
-              peer,
-            });
-
-            break;
-          }
         }
 
         break;
@@ -1552,7 +1515,7 @@ class Room extends EventEmitter {
    */
   async _createDataConsumer({
     dataConsumerPeer,
-    dataProducerPeer = null, // This is null for the bot DataProducer.
+    dataProducerPeer,
     dataProducer,
   }) {
     // NOTE: Don't create the DataConsumer if the remote Peer cannot consume it.
@@ -1604,7 +1567,6 @@ class Room extends EventEmitter {
     // Send a protoo request to the remote Peer with Consumer parameters.
     try {
       await dataConsumerPeer.request("newDataConsumer", {
-        // This is null for bot DataProducer.
         peerId: dataProducerPeer ? dataProducerPeer.id : null,
         dataProducerId: dataProducer.id,
         id: dataConsumer.id,

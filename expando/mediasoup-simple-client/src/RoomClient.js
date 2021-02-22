@@ -456,7 +456,7 @@ export default class RoomClient extends EventEmitter {
           }
 
           const {
-            peerId, // NOTE: Null if bot.
+            peerId,
             dataProducerId,
             id,
             sctpStreamParameters,
@@ -560,12 +560,6 @@ export default class RoomClient extends EventEmitter {
                     sender: sendingPeer,
                     text: message,
                   });
-
-                  break;
-                }
-
-                case "bot": {
-                  // Process message from bot.
 
                   break;
                 }
