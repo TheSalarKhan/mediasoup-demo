@@ -73,15 +73,24 @@
         console.log("Here's a list of mediasoup events supported.");
         console.log(mediasoup.EVENTS);
         //Subscribing to all events
-        const eventGroups = Object.keys(mediasoup.EVENTS);
+        // First we subscribe to all the event groups.
+        // NOTE: ERROR is not an event group
+        let eventGroups = Object.keys(mediasoup.EVENTS);
+        eventGroups = eventGroups.filter((e) => e !== "ERROR");
         for (const group of eventGroups) {
           let events = Object.keys(mediasoup.EVENTS[group]);
+          // For each group we subscribe to all its
+          // events.
           for (const ev of events) {
             roomClient.on(ev, (data) => {
-              console.log(`${group} Event: ${ev}`, data);
+              console.log(`Event Group: ${group} Event: ${ev}`, data);
             });
           }
         }
+        // We subscribe to the ERROR event separately.
+        roomClient.on(mediasoup.EVENTS.ERROR, (data) => {
+          console.log(`Event: ERROR`, data);
+        });
 
         window.roomClient = roomClient;
       })();

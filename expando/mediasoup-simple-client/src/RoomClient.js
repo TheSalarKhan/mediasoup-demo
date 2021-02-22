@@ -815,15 +815,12 @@ export default class RoomClient extends EventEmitter {
     } catch (error) {
       logger.error("enableMic() | failed:%o", error);
 
-      this.emit(EVENTS.ERROR, {
-        type: "mic-error",
-        text: `Error enabling microphone: ${error}`,
-      });
-
       if (track) {
         track.stop();
         track.onended && track.onended();
       }
+
+      throw Error(`Error enabling microphone: ${error}`);
     }
   }
 
@@ -843,10 +840,8 @@ export default class RoomClient extends EventEmitter {
         producerId: this._micProducer.id,
       });
     } catch (error) {
-      this.emit(EVENTS.ERROR, {
-        type: "disable-mic-error",
-        text: `Error closing server-side mic Producer: ${error}`,
-      });
+      this._micProducer = null;
+      throw Error(`Error closing server-side mic Producer: ${error}`);
     }
 
     this._micProducer = null;
@@ -868,10 +863,7 @@ export default class RoomClient extends EventEmitter {
     } catch (error) {
       logger.error("muteMic() | failed: %o", error);
 
-      this.emit(EVENTS.ERROR, {
-        type: "mute-mic-error",
-        text: `Error pausing server-side mic Producer: ${error}`,
-      });
+      throw Error(`Error pausing server-side mic Producer: ${error}`);
     }
   }
 
@@ -891,10 +883,7 @@ export default class RoomClient extends EventEmitter {
     } catch (error) {
       logger.error("unmuteMic() | failed: %o", error);
 
-      this.emit(EVENTS.ERROR, {
-        type: "unmute-mic-error",
-        text: `Error resuming server-side mic Producer: ${error}`,
-      });
+      throw Error(`Error resuming server-side mic Producer: ${error}`);
     }
   }
 
@@ -1008,15 +997,12 @@ export default class RoomClient extends EventEmitter {
     } catch (error) {
       logger.error("enableWebcam() | failed:%o", error);
 
-      this.emit(EVENTS.ERROR, {
-        type: "enable-webcam-error",
-        text: `Error enabling webcam: ${error}`,
-      });
-
       if (track) {
         track.stop();
         track.onended && track.onended();
       }
+
+      throw Error(`Error enabling webcam: ${error}`);
     }
   }
 
@@ -1036,10 +1022,8 @@ export default class RoomClient extends EventEmitter {
         producerId: this._webcamProducer.id,
       });
     } catch (error) {
-      this.emit(EVENTS.ERROR, {
-        type: "disable-webcam-error",
-        text: `Error closing server-side webcam Producer: ${error}`,
-      });
+      this._webcamProducer = null;
+      throw Error(`Error closing server-side webcam Producer: ${error}`);
     }
 
     this._webcamProducer = null;
@@ -1099,10 +1083,7 @@ export default class RoomClient extends EventEmitter {
     } catch (error) {
       logger.error("changeWebcam() | failed: %o", error);
 
-      this.emit(EVENTS.ERROR, {
-        type: "change-webcam-error",
-        text: `Could not change webcam: ${error}`,
-      });
+      throw Error(`Could not change webcam: ${error}`);
     }
   }
 
@@ -1150,10 +1131,7 @@ export default class RoomClient extends EventEmitter {
     } catch (error) {
       logger.error("changeWebcamResolution() | failed: %o", error);
 
-      this.emit(EVENTS.ERROR, {
-        type: "change-webcam-resolution-error",
-        text: `Could not change webcam resolution: ${error}`,
-      });
+      throw Error(`Could not change webcam resolution: ${error}`);
     }
   }
 
@@ -1274,16 +1252,13 @@ export default class RoomClient extends EventEmitter {
     } catch (error) {
       logger.error("enableShare() | failed:%o", error);
 
-      if (error.name !== "NotAllowedError") {
-        this.emit(EVENTS.ERROR, {
-          type: "share-error",
-          text: `error sharing: ${error}`,
-        });
-      }
-
       if (track) {
         track.stop();
         track.onended && track.onended();
+      }
+
+      if (error.name !== "NotAllowedError") {
+        throw Error(`error sharing: ${error}`);
       }
     }
   }
@@ -1304,10 +1279,8 @@ export default class RoomClient extends EventEmitter {
         producerId: this._shareProducer.id,
       });
     } catch (error) {
-      this.emit(EVENTS.ERROR, {
-        type: "disable-share-error",
-        text: `Error closing server-side share Producer: ${error}`,
-      });
+      this._shareProducer = null;
+      throw Error(`Error closing server-side share Producer: ${error}`);
     }
 
     this._shareProducer = null;
@@ -1350,10 +1323,7 @@ export default class RoomClient extends EventEmitter {
     } catch (error) {
       logger.error("setMaxSendingSpatialLayer() | failed:%o", error);
 
-      this.emit(EVENTS.ERROR, {
-        type: "set-max-sending-spatial-layer-error",
-        text: `Error setting max sending video spatial layer: ${error}`,
-      });
+      throw Error(`Error setting max sending video spatial layer: ${error}`);
     }
   }
 
@@ -1380,10 +1350,7 @@ export default class RoomClient extends EventEmitter {
     } catch (error) {
       logger.error("setConsumerPreferredLayers() | failed:%o", error);
 
-      this.emit(EVENTS.ERROR, {
-        type: "set-consumer-preffered-layers-error",
-        text: `Error setting Consumer preferred layers: ${error}`,
-      });
+      throw Error(`Error setting Consumer preferred layers: ${error}`);
     }
   }
 
@@ -1407,10 +1374,7 @@ export default class RoomClient extends EventEmitter {
     } catch (error) {
       logger.error("setConsumerPriority() | failed:%o", error);
 
-      this.emit(EVENTS.ERROR, {
-        type: "set-consumer-priority-error",
-        text: `Error setting Consumer priority: ${error}`,
-      });
+      throw Error(`Error setting Consumer priority: ${error}`);
     }
   }
 
@@ -1422,10 +1386,7 @@ export default class RoomClient extends EventEmitter {
     } catch (error) {
       logger.error("requestConsumerKeyFrame() | failed:%o", error);
 
-      this.emit(EVENTS.ERROR, {
-        type: "request-consumer-keyframe-error",
-        text: `Error requesting key frame for Consumer: ${error}`,
-      });
+      throw Error(`Error requesting key frame for Consumer: ${error}`);
     }
   }
 
@@ -1487,12 +1448,7 @@ export default class RoomClient extends EventEmitter {
     } catch (error) {
       logger.error("enableChatDataProducer() | failed:%o", error);
 
-      this.emit(EVENTS.ERROR, {
-        type: "chat-data-producer-error",
-        text: `Error enabling chat DataProducer: ${error}`,
-      });
-
-      throw error;
+      throw Error(`Error enabling chat DataProducer: ${error}`);
     }
   }
 
@@ -1500,12 +1456,7 @@ export default class RoomClient extends EventEmitter {
     logger.debug('sendChatMessage() [text:"%s]', text);
 
     if (!this._chatDataProducer) {
-      this.emit(EVENTS.ERROR, {
-        type: "send-chat-message-error",
-        text: "No chat DataProducer",
-      });
-
-      return;
+      throw Error("No chat DataProducer");
     }
 
     try {
@@ -1513,10 +1464,7 @@ export default class RoomClient extends EventEmitter {
     } catch (error) {
       logger.error("chat DataProducer.send() failed:%o", error);
 
-      this.emit(EVENTS.ERROR, {
-        type: "send-chat-message-error",
-        text: `chat DataProducer.send() failed: ${error}`,
-      });
+      throw Error(`chat DataProducer.send() failed: ${error}`);
     }
   }
 
@@ -1668,10 +1616,7 @@ export default class RoomClient extends EventEmitter {
     } catch (error) {
       logger.error("applyNetworkThrottle() | failed:%o", error);
 
-      this.emit(EVENTS.ERROR, {
-        type: "apply-network-throttle-error",
-        text: `Error applying network throttle: ${error}`,
-      });
+      throw Error(`Error applying network throttle: ${error}`);
     }
   }
 
@@ -1684,10 +1629,7 @@ export default class RoomClient extends EventEmitter {
       if (!silent) {
         logger.error("resetNetworkThrottle() | failed:%o", error);
 
-        this.emit(EVENTS.ERROR, {
-          type: "reset-network-throttle-error",
-          text: `Error resetting network throttle: ${error}`,
-        });
+        throw Error(`Error resetting network throttle: ${error}`);
       }
     }
   }
@@ -1912,12 +1854,9 @@ export default class RoomClient extends EventEmitter {
     } catch (error) {
       logger.error("_joinRoom() failed:%o", error);
 
-      this.emit(EVENTS.ERROR, {
-        type: "join-room-error",
-        text: `Could not join the room: ${error}`,
-      });
-
       this.close();
+
+      throw Error(`Could not join the room: ${error}`);
     }
   }
 
@@ -1964,6 +1903,7 @@ export default class RoomClient extends EventEmitter {
     }
   }
 
+  // TODO: Can be removed, this was used by the audio only feature.
   async _pauseConsumer(consumer) {
     if (consumer.paused) return;
 
@@ -1979,13 +1919,11 @@ export default class RoomClient extends EventEmitter {
     } catch (error) {
       logger.error("_pauseConsumer() | failed:%o", error);
 
-      this.emit(EVENTS.ERROR, {
-        type: "pause-consumer-error",
-        text: `Error pausing Consumer: ${error}`,
-      });
+      throw Error(`Error pausing Consumer: ${error}`);
     }
   }
 
+  // TODO: Can be removed, this was used by the audio only feature.
   async _resumeConsumer(consumer) {
     if (!consumer.paused) return;
 
@@ -2001,10 +1939,7 @@ export default class RoomClient extends EventEmitter {
     } catch (error) {
       logger.error("_resumeConsumer() | failed:%o", error);
 
-      this.emit(EVENTS.ERROR, {
-        type: "resume-consumer-error",
-        text: `Error resuming Consumer: ${error}`,
-      });
+      throw Error(`Error resuming Consumer: ${error}`);
     }
   }
 }
