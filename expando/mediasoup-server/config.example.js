@@ -12,10 +12,15 @@ const os = require("os");
 
 module.exports = {
   // Flags for the 'debug' module.
-  // CAUTION: The value of this is set in process.env.DEBUG.
   debug: "*mediasoup* *INFO* *WARN* *ERROR*",
   // The server starts with an interactive shell if 'true'.
   interactive: false,
+  // Snapshots of the heap are dumped to this folder if set to a string. This
+  // happens in the interactive mode.
+  heapSnapshotDir: false,
+  // Network throttle secret. When network throttle is requested from the client side
+  // they have to provide this secret in order to succeed.
+  networkThrottleSecret: "y2bi0vh11IUGoQulqDWY",
   // Signaling settings (protoo WebSocket server and HTTP API server).
   http: {
     listenIp: "0.0.0.0",

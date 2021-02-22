@@ -3,11 +3,9 @@
 process.title = "mediasoup-server";
 
 const config = require("./config");
-process.env.DEBUG = config.debug;
-process.env.INTERACTIVE = config.interactive;
 
 /* eslint-disable no-console */
-console.log("process.env.DEBUG:", process.env.DEBUG);
+console.log("config.debug:", config.debug);
 console.log("config.js:\n%s", JSON.stringify(config, null, "  "));
 /* eslint-enable no-console */
 
@@ -62,8 +60,7 @@ async function run() {
   await interactiveServer();
 
   // Open the interactive client.
-  if (process.env.INTERACTIVE === "true" || process.env.INTERACTIVE === "1")
-    await interactiveClient();
+  if (config.interactive === true) await interactiveClient();
 
   // Run a mediasoup Worker.
   await runMediasoupWorkers();
