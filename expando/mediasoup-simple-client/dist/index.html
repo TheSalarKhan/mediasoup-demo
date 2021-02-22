@@ -30,6 +30,7 @@
     <div id="main-container" class="container"></div>
     <script src="./mediasoup-simple-client-bundle.js"></script>
     <script>
+      let consumerToVideoElementMap = {};
       function addANewVideoElement(track, isLocal) {
         const newVideoElement = document.createElement("video");
         newVideoElement.muted = isLocal ? true : false;
@@ -43,6 +44,20 @@
         }
         const container = document.getElementById("main-container");
         container.appendChild(newVideoElement);
+        return newVideoElement;
+      }
+
+      function addVideoElementAgainstId(Id, videoElement) {
+        consumerToVideoElementMap[Id] = videoElement;
+      }
+      function removeElementForId(Id) {
+        const element = consumerToVideoElementMap[Id];
+        if (!element) {
+          return;
+        }
+        const container = document.getElementById("main-container");
+        container.removeChild(element);
+        delete consumerToVideoElementMap[Id];
       }
 
       (async () => {
@@ -54,20 +69,30 @@
           baseUrl: "ws://localhost:4443",
           mode: mediasoup.MODES.AUDIO_AND_VIDEO,
           useSimulcast: true,
-          forceH264: true,
+          forceH264: false,
         });
         await roomClient.join();
         // Listen for events on 'PRODUCER's. Local tracks.
         roomClient.on(mediasoup.EVENTS.PRODUCER.NEW_PRODUCER, (producer) => {
           const track = producer.track;
           // Producers are local tracks
-          addANewVideoElement(track, true);
+          const element = addANewVideoElement(track, true);
+          addVideoElementAgainstId(producer.id, element);
+        });
+        // Listen for producers being removed. disableMic, disableShare, disableWebcam
+        roomClient.on(mediasoup.EVENTS.PRODUCER.REMOVE_PRODUCER, (producer) => {
+          removeElementForId(producer.id);
         });
         // Listen for events on 'CONSUMERS's. Remote tracks.
-        roomClient.on(mediasoup.EVENTS.CONSUMER.NEW_CONSUMER, (consumer) => {
-          const track = consumer.consumer.track;
+        roomClient.on(mediasoup.EVENTS.CONSUMER.NEW_CONSUMER, (data) => {
+          const { consumer } = data;
           // Consumers are remote tracks
-          addANewVideoElement(track, false);
+          const element = addANewVideoElement(consumer.track, false);
+          addVideoElementAgainstId(consumer.id, element);
+        });
+        // Listen for consumers being removed.
+        roomClient.on(mediasoup.EVENTS.CONSUMER.REMOVE_CONSUMER, (consumer) => {
+          removeElementForId(consumer.id);
         });
         // Print all supported events
         console.log("Here's a list of mediasoup events supported.");

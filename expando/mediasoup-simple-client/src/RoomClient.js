@@ -607,7 +607,7 @@ export default class RoomClient extends EventEmitter {
         case "producerScore": {
           const { producerId, score } = notification.data;
 
-          this.emit(EVENTS.PRODUCER.PRODUCER_SCORE, { producerId, score });
+          this.emit(EVENTS.PRODUCER.PRODUCER_SCORE, { id: producerId, score });
 
           break;
         }
@@ -663,7 +663,10 @@ export default class RoomClient extends EventEmitter {
           const { peerId } = consumer.appData;
 
           this._removeConsumerFromPeer(peerId, consumerId);
-          this.emit(EVENTS.CONSUMER.REMOVE_CONSUMER, { consumerId, peerId });
+          this.emit(EVENTS.CONSUMER.REMOVE_CONSUMER, {
+            id: consumerId,
+            peerId,
+          });
 
           break;
         }
@@ -677,7 +680,7 @@ export default class RoomClient extends EventEmitter {
           consumer.pause();
 
           this.emit(EVENTS.CONSUMER.CONSUMER_PAUSED, {
-            consumerId,
+            id: consumerId,
             type: "remote",
           });
 
@@ -693,7 +696,7 @@ export default class RoomClient extends EventEmitter {
           consumer.resume();
 
           this.emit(EVENTS.CONSUMER.CONSUMER_RESUMED, {
-            consumerId,
+            id: consumerId,
             type: "remote",
           });
 
@@ -707,7 +710,7 @@ export default class RoomClient extends EventEmitter {
           if (!consumer) break;
 
           this.emit(EVENTS.CONSUMER.CONSUMER_LAYERS_CHANGED, {
-            consumerId,
+            id: consumerId,
             spatialLayer,
             temporalLayer,
           });
@@ -718,7 +721,7 @@ export default class RoomClient extends EventEmitter {
         case "consumerScore": {
           const { consumerId, score } = notification.data;
 
-          this.emit(EVENTS.CONSUMER.CONSUMER_SCORE, { consumerId, score });
+          this.emit(EVENTS.CONSUMER.CONSUMER_SCORE, { id: consumerId, score });
 
           break;
         }
@@ -736,7 +739,7 @@ export default class RoomClient extends EventEmitter {
 
           this._removeDataConsumerFromPeer(peerId, dataConsumerId);
           this.emit(EVENTS.CONSUMER.REMOVE_DATA_CONSUMER, {
-            dataConsumerId,
+            id: dataConsumerId,
             peerId,
           });
 
@@ -832,7 +835,7 @@ export default class RoomClient extends EventEmitter {
     this._micProducer.close();
 
     this.emit(EVENTS.PRODUCER.REMOVE_PRODUCER, {
-      producerId: this._micProducer.id,
+      id: this._micProducer.id,
     });
 
     try {
@@ -858,7 +861,7 @@ export default class RoomClient extends EventEmitter {
       });
 
       this.emit(EVENTS.PRODUCER.PRODUCER_PAUSED, {
-        producerId: this._micProducer.id,
+        id: this._micProducer.id,
       });
     } catch (error) {
       logger.error("muteMic() | failed: %o", error);
@@ -874,11 +877,11 @@ export default class RoomClient extends EventEmitter {
 
     try {
       await this._protoo.request("resumeProducer", {
-        producerId: this._micProducer.id,
+        id: this._micProducer.id,
       });
 
       this.emit(EVENTS.PRODUCER.PRODUCER_RESUMED, {
-        producerId: this._micProducer.id,
+        id: this._micProducer.id,
       });
     } catch (error) {
       logger.error("unmuteMic() | failed: %o", error);
@@ -1014,7 +1017,7 @@ export default class RoomClient extends EventEmitter {
     this._webcamProducer.close();
 
     this.emit(EVENTS.PRODUCER.REMOVE_PRODUCER, {
-      producerId: this._webcamProducer.id,
+      id: this._webcamProducer.id,
     });
 
     try {
@@ -1077,7 +1080,7 @@ export default class RoomClient extends EventEmitter {
       await this._webcamProducer.replaceTrack({ track });
 
       this.emit(EVENTS.PRODUCER.SET_PRODUCER_TRACK, {
-        producerId: this._webcamProducer.id,
+        id: this._webcamProducer.id,
         track,
       });
     } catch (error) {
@@ -1125,7 +1128,7 @@ export default class RoomClient extends EventEmitter {
       await this._webcamProducer.replaceTrack({ track });
 
       this.emit(EVENTS.PRODUCER.SET_PRODUCER_TRACK, {
-        producerId: this._webcamProducer.id,
+        id: this._webcamProducer.id,
         track,
       });
     } catch (error) {
@@ -1271,7 +1274,7 @@ export default class RoomClient extends EventEmitter {
     this._shareProducer.close();
 
     this.emit(EVENTS.PRODUCER.REMOVE_PRODUCER, {
-      producerId: this._shareProducer.id,
+      id: this._shareProducer.id,
     });
 
     try {
@@ -1342,8 +1345,10 @@ export default class RoomClient extends EventEmitter {
         temporalLayer,
       });
 
+      // TODO: This event might be unnecessary, since this is an async function,
+      // and if it returns fine it means the requested layers were properly set.
       this.emit(EVENTS.CONSUMER.SET_CONSUMER_PREFERRED_LAYERS, {
-        consumerId,
+        id: consumerId,
         spatialLayer,
         temporalLayer,
       });
@@ -1368,7 +1373,7 @@ export default class RoomClient extends EventEmitter {
       });
 
       this.emit(EVENTS.CONSUMER.SET_CONSUMER_PRIORITY, {
-        consumerid,
+        id: consumerid,
         priority,
       });
     } catch (error) {
@@ -1913,7 +1918,7 @@ export default class RoomClient extends EventEmitter {
       consumer.pause();
 
       this.emit(EVENTS.CONSUMER.CONSUMER_PAUSED, {
-        consumerId: consumer.id,
+        id: consumer.id,
         type: "local",
       });
     } catch (error) {
@@ -1933,7 +1938,7 @@ export default class RoomClient extends EventEmitter {
       consumer.resume();
 
       this.emit(EVENTS.CONSUMER.CONSUMER_RESUMED, {
-        consumerId: consumer.id,
+        id: consumer.id,
         type: "local",
       });
     } catch (error) {
