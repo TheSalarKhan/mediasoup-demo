@@ -9,7 +9,6 @@ console.log("config.debug:", config.debug);
 console.log("config.js:\n%s", JSON.stringify(config, null, "  "));
 /* eslint-enable no-console */
 
-const fs = require("fs");
 const http = require("http");
 const url = require("url");
 const protoo = require("protoo-server");
