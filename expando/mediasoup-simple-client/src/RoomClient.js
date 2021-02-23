@@ -113,6 +113,10 @@ export default class RoomClient extends EventEmitter {
     datachannel = false,
     // set mode of operation.
     mode = MODES.AUDIO_AND_VIDEO,
+    producerTopics = ["default"],
+    dataProducerTopics = ["default"],
+    consumerTopics = ["default"],
+    dataConsumerTopics = ["default"],
   }) {
     super();
     logger.debug(
@@ -235,6 +239,11 @@ export default class RoomClient extends EventEmitter {
 
     // List of all the peers in the room.
     this._peers = [];
+
+    this._producerTopics = producerTopics;
+    this._dataProducerTopics = dataProducerTopics;
+    this._consumerTopics = consumerTopics;
+    this._dataConsumerTopics = dataConsumerTopics;
   }
 
   _addDataConsumerToPeer(peerId, consumer) {
@@ -1825,6 +1834,11 @@ export default class RoomClient extends EventEmitter {
           this._useDataChannel && this._consume
             ? this._mediasoupDevice.sctpCapabilities
             : undefined,
+        producerTopics: this._producerTopics,
+        dataProducerTopics: this._dataProducerTopics,
+        consumerTopics: this._consumerTopics,
+        dataConsumerTopics: this._dataConsumerTopics,
+        // Add topics here.
       });
 
       this.emit(EVENTS.ROOM.CONNECTED);
