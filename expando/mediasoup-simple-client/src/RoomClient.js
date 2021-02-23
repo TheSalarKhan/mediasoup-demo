@@ -244,6 +244,12 @@ export default class RoomClient extends EventEmitter {
     this._dataProducerTopics = dataProducerTopics;
     this._consumerTopics = consumerTopics;
     this._dataConsumerTopics = dataConsumerTopics;
+
+    // These two variables decide the state
+    // of the audio and video whenever _joinRoom
+    // is called.
+    this._startAudioMuted = false;
+    this._startVideoMuted = false;
   }
 
   _addDataConsumerToPeer(peerId, consumer) {
@@ -309,7 +315,9 @@ export default class RoomClient extends EventEmitter {
     this.emit(EVENTS.ROOM.CLOSED);
   }
 
-  async join() {
+  async join(startWithAudio = true, startWithVideo = true) {
+    this._startAudioMuted = startWithAudio ? false : true;
+    this._startVideoMuted = startWithVideo ? false : true;
     const protooTransport = new protooClient.WebSocketTransport(
       this._protooUrl
     );
@@ -859,45 +867,49 @@ export default class RoomClient extends EventEmitter {
     this._micProducer = null;
   }
 
-  async muteMic() {
-    logger.debug("muteMic()");
+  // REMOVING MUTE/UNMUTE
+  // ====================
+  // Instead of having muteMic and also enableMic
+  // its better to have just one.
+  // async muteMic() {
+  //   logger.debug("muteMic()");
 
-    this._micProducer.pause();
+  //   this._micProducer.pause();
 
-    try {
-      await this._protoo.request("pauseProducer", {
-        producerId: this._micProducer.id,
-      });
+  //   try {
+  //     await this._protoo.request("pauseProducer", {
+  //       producerId: this._micProducer.id,
+  //     });
 
-      this.emit(EVENTS.PRODUCER.PRODUCER_PAUSED, {
-        id: this._micProducer.id,
-      });
-    } catch (error) {
-      logger.error("muteMic() | failed: %o", error);
+  //     this.emit(EVENTS.PRODUCER.PRODUCER_PAUSED, {
+  //       id: this._micProducer.id,
+  //     });
+  //   } catch (error) {
+  //     logger.error("muteMic() | failed: %o", error);
 
-      throw Error(`Error pausing server-side mic Producer: ${error}`);
-    }
-  }
+  //     throw Error(`Error pausing server-side mic Producer: ${error}`);
+  //   }
+  // }
 
-  async unmuteMic() {
-    logger.debug("unmuteMic()");
+  // async unmuteMic() {
+  //   logger.debug("unmuteMic()");
 
-    this._micProducer.resume();
+  //   this._micProducer.resume();
 
-    try {
-      await this._protoo.request("resumeProducer", {
-        id: this._micProducer.id,
-      });
+  //   try {
+  //     await this._protoo.request("resumeProducer", {
+  //       id: this._micProducer.id,
+  //     });
 
-      this.emit(EVENTS.PRODUCER.PRODUCER_RESUMED, {
-        id: this._micProducer.id,
-      });
-    } catch (error) {
-      logger.error("unmuteMic() | failed: %o", error);
+  //     this.emit(EVENTS.PRODUCER.PRODUCER_RESUMED, {
+  //       id: this._micProducer.id,
+  //     });
+  //   } catch (error) {
+  //     logger.error("unmuteMic() | failed: %o", error);
 
-      throw Error(`Error resuming server-side mic Producer: ${error}`);
-    }
-  }
+  //     throw Error(`Error resuming server-side mic Producer: ${error}`);
+  //   }
+  // }
 
   async enableWebcam() {
     logger.debug("enableWebcam()");
@@ -1016,6 +1028,13 @@ export default class RoomClient extends EventEmitter {
 
       throw Error(`Error enabling webcam: ${error}`);
     }
+
+    // If this function was successful, we
+    // will set _startVideoMuted to false.
+    // Because if call was started with video muted
+    // and later we called this function the next time we disconnect
+    // and reconnect we should get the video back.
+    this._startVideoMuted = false;
   }
 
   async disableWebcam() {
@@ -1039,6 +1058,13 @@ export default class RoomClient extends EventEmitter {
     }
 
     this._webcamProducer = null;
+
+    // If this function was successful, we
+    // will set _startVideoMuted to false.
+    // Because if call was started with video muted
+    // and later we called this function the next time we disconnect
+    // and reconnect we should get the video back.
+    this._startVideoMuted = true;
   }
 
   async changeWebcam() {
@@ -1273,6 +1299,12 @@ export default class RoomClient extends EventEmitter {
         throw Error(`error sharing: ${error}`);
       }
     }
+    // If this function was successful, we
+    // will set _startVideoMuted to false.
+    // Because if call was started with video muted
+    // and later we called this function the next time we disconnect
+    // and reconnect we should get the video back.
+    this._startVideoMuted = false;
   }
 
   async disableShare() {
@@ -1296,6 +1328,13 @@ export default class RoomClient extends EventEmitter {
     }
 
     this._shareProducer = null;
+
+    // If this function was successful, we
+    // will set _startVideoMuted to false.
+    // Because if call was started with video muted
+    // and later we called this function the next time we disconnect
+    // and reconnect we should get the video back.
+    this._startVideoMuted = false;
   }
 
   async restartIce() {
@@ -1860,9 +1899,9 @@ export default class RoomClient extends EventEmitter {
             this._mediasoupDevice.canProduce("video"),
         });
 
-        this.enableMic();
+        if (!this._startAudioMuted) this.enableMic();
 
-        this.enableWebcam();
+        if (!this._startVideoMuted) this.enableWebcam();
 
         this._sendTransport.on("connectionstatechange", (connectionState) => {
           if (connectionState === "connected") {
