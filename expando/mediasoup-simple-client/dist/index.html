@@ -30,7 +30,6 @@
     <div id="main-container" class="container"></div>
     <script src="./mediasoup-simple-client-bundle.js"></script>
     <script>
-      let consumerToVideoElementMap = {};
       function addANewVideoElement(track, isLocal) {
         const newVideoElement = document.createElement("video");
         newVideoElement.muted = isLocal ? true : false;
@@ -47,6 +46,7 @@
         return newVideoElement;
       }
 
+      let consumerToVideoElementMap = {};
       function addVideoElementAgainstId(Id, videoElement) {
         consumerToVideoElementMap[Id] = videoElement;
       }
@@ -61,6 +61,7 @@
       }
 
       (async () => {
+        //////// SECTION 1 INITIALIZATION ///////
         // Initializing connection to the server.
         let roomClient = new mediasoup.RoomClient({
           roomId: "p6afwjkb",
@@ -72,6 +73,7 @@
           forceH264: false,
         });
         await roomClient.join();
+        //////// SECTION 2 PRODUCER EVENTS ///////
         // Listen for events on 'PRODUCER's. Local tracks.
         roomClient.on(mediasoup.EVENTS.PRODUCER.NEW_PRODUCER, (producer) => {
           const track = producer.track;
@@ -83,6 +85,7 @@
         roomClient.on(mediasoup.EVENTS.PRODUCER.REMOVE_PRODUCER, (producer) => {
           removeElementForId(producer.id);
         });
+        //////// SECTION 3 CONSUMER EVENTS ///////
         // Listen for events on 'CONSUMERS's. Remote tracks.
         roomClient.on(mediasoup.EVENTS.CONSUMER.NEW_CONSUMER, (data) => {
           const { consumer } = data;
@@ -94,6 +97,7 @@
         roomClient.on(mediasoup.EVENTS.CONSUMER.REMOVE_CONSUMER, (consumer) => {
           removeElementForId(consumer.id);
         });
+        //////// SECTION 4 SUBSCRIBE TO ALL EVENTS ///////
         // Print all supported events
         console.log("Here's a list of mediasoup events supported.");
         console.log(mediasoup.EVENTS);

@@ -6,6 +6,39 @@ const config = require("../config");
 
 const logger = new Logger("Room");
 
+// Helper function that wraps an array of topics
+// into an object that also provides a lookup map.
+function _convertTopicsToObject(arr) {
+  // Converting from array to object is super easy.
+  // But the result has keys as 0,1,2,3. and values
+  // as the members of the array. For example if 'arr'
+  // is ["a","b"] the 'result' will be { 0: "a", 1: "b" }.
+  // What we want is to reverse this result so that the elements
+  // become the key, making lookup easy. We'll replace 0,1 with 'true'
+  // so that we can use this in 'if' condition.
+  // Look at '_topicsOverlap' function below.
+  const result = Object.assign({}, arr);
+  const mapToReturn = Object.assign(
+    {},
+    ...Object.entries(result).map(([a, b]) => ({
+      [b]: true,
+    }))
+  );
+  return {
+    lookup: mapToReturn,
+    val: arr,
+  };
+}
+
+function _topicsOverlap(topics1, topics2) {
+  // If there's at least 1 occurence of a topic from topics1
+  // in topics2 we return true.
+  for (const topic of topics1.val) {
+    if (topics2.lookup[topic]) return true;
+  }
+  return false;
+}
+
 /**
  * Room class.
  *
@@ -713,6 +746,24 @@ class Room extends EventEmitter {
     });
   }
 
+  __topicsOverlap(producingPeer, consumingPeer) {
+    let toReturn = { topicsOverlap: false, dataTopicsOverlap: false };
+
+    const consumerTopics = consumingPeer.data.consumerTopics;
+    const producerTopics = producingPeer.data.producerTopics;
+    if (_topicsOverlap(consumerTopics, producerTopics)) {
+      toReturn.topicsOverlap = true;
+    }
+
+    const dataConsumerTopics = consumingPeer.data.dataConsumerTopics;
+    const dataProducerTopics = producingPeer.data.dataProducerTopics;
+    if (_topicsOverlap(dataConsumerTopics, dataProducerTopics)) {
+      toReturn.dataTopicsOverlap = true;
+    }
+
+    return toReturn;
+  }
+
   /**
    * Handle protoo requests from browsers.
    *
@@ -737,12 +788,48 @@ class Room extends EventEmitter {
           sctpCapabilities,
         } = request.data;
 
+        let {
+          producerTopics,
+          consumerTopics,
+          dataProducerTopics,
+          dataConsumerTopics,
+        } = request.data;
+        // producerTopics define the topics to which this
+        // peer will publish its producers.
+        producerTopics =
+          producerTopics && producerTopics.length
+            ? producerTopics
+            : ["default"];
+        dataProducerTopics =
+          dataProducerTopics && dataProducerTopics.length
+            ? dataProducerTopics
+            : ["default"];
+        // consumerTopics define the topics which this peer
+        // is subscribing to, so the consumers sent to it will
+        // only be from these topics.
+        consumerTopics =
+          consumerTopics && consumerTopics.length
+            ? consumerTopics
+            : ["default"];
+        dataConsumerTopics =
+          dataConsumerTopics && dataConsumerTopics.length
+            ? dataConsumerTopics
+            : ["default"];
+
         // Store client data into the protoo Peer data object.
         peer.data.joined = true;
         peer.data.displayName = displayName;
         peer.data.device = device;
         peer.data.rtpCapabilities = rtpCapabilities;
         peer.data.sctpCapabilities = sctpCapabilities;
+        peer.data.producerTopics = _convertTopicsToObject(producerTopics);
+        peer.data.dataProducerTopics = _convertTopicsToObject(
+          dataProducerTopics
+        );
+        peer.data.consumerTopics = _convertTopicsToObject(consumerTopics);
+        peer.data.dataConsumerTopics = _convertTopicsToObject(
+          dataConsumerTopics
+        );
 
         // Tell the new Peer about already joined Peers.
         // And also create Consumers for existing Producers.
@@ -764,25 +851,38 @@ class Room extends EventEmitter {
         accept({ peers: peerInfos });
 
         // Mark the new Peer as joined.
+        // this._getJoinedPeers will return
+        // this peer too now.
         peer.data.joined = true;
 
         for (const joinedPeer of joinedPeers) {
-          // Create Consumers for existing Producers.
-          for (const producer of joinedPeer.data.producers.values()) {
-            this._createConsumer({
-              consumerPeer: peer,
-              producerPeer: joinedPeer,
-              producer,
-            });
+          // Before making a consumer for this peer against a joined peer's
+          // producer. We will check if there is an overlap between the producerTopics
+          // of joinedPeer and consumer topics of peer.
+          const { topicsOverlap, dataTopicsOverlap } = this.__topicsOverlap(
+            joinedPeer,
+            peer
+          );
+          if (topicsOverlap) {
+            // Create Consumers for existing Producers.
+            for (const producer of joinedPeer.data.producers.values()) {
+              this._createConsumer({
+                consumerPeer: peer,
+                producerPeer: joinedPeer,
+                producer,
+              });
+            }
           }
 
-          // Create DataConsumers for existing DataProducers.
-          for (const dataProducer of joinedPeer.data.dataProducers.values()) {
-            this._createDataConsumer({
-              dataConsumerPeer: peer,
-              dataProducerPeer: joinedPeer,
-              dataProducer,
-            });
+          if (dataTopicsOverlap) {
+            // Create DataConsumers for existing DataProducers.
+            for (const dataProducer of joinedPeer.data.dataProducers.values()) {
+              this._createDataConsumer({
+                dataConsumerPeer: peer,
+                dataProducerPeer: joinedPeer,
+                dataProducer,
+              });
+            }
           }
         }
 
@@ -978,11 +1078,17 @@ class Room extends EventEmitter {
 
         // Optimization: Create a server-side Consumer for each Peer.
         for (const otherPeer of this._getJoinedPeers({ excludePeer: peer })) {
-          this._createConsumer({
-            consumerPeer: otherPeer,
-            producerPeer: peer,
-            producer,
-          });
+          // Before making a consumer for otherPeer against peer's
+          // producer. We will check if there is an overlap between the producerTopics
+          // of peer and consumerTopics of otherPeer.
+          const { topicsOverlap } = this.__topicsOverlap(peer, otherPeer);
+          if (topicsOverlap) {
+            this._createConsumer({
+              consumerPeer: otherPeer,
+              producerPeer: peer,
+              producer,
+            });
+          }
         }
 
         // Add into the audioLevelObserver.
@@ -1169,11 +1275,20 @@ class Room extends EventEmitter {
             for (const otherPeer of this._getJoinedPeers({
               excludePeer: peer,
             })) {
-              this._createDataConsumer({
-                dataConsumerPeer: otherPeer,
-                dataProducerPeer: peer,
-                dataProducer,
-              });
+              // Before making a consumer for otherPeer against peer's
+              // producer. We will check if there is an overlap between the producerTopics
+              // of peer and consumerTopics of otherPeer.
+              const { dataTopicsOverlap } = this.__topicsOverlap(
+                peer,
+                otherPeer
+              );
+              if (dataTopicsOverlap) {
+                this._createDataConsumer({
+                  dataConsumerPeer: otherPeer,
+                  dataProducerPeer: peer,
+                  dataProducer,
+                });
+              }
             }
 
             break;
