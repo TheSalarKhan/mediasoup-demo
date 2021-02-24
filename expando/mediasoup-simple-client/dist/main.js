@@ -10,7 +10,7 @@ function getVideoElementForTrack(track, isLocal) {
   newVideoElement.classList.add("vid");
   return newVideoElement;
 }
-function addANewVideoElement(track, isLocal) {
+function addANewVideoElement(track, isLocal, text) {
   const newVideoElement = getVideoElementForTrack(track, isLocal);
   // Create the containing div.
   const div = document.createElement("div");
@@ -19,6 +19,7 @@ function addANewVideoElement(track, isLocal) {
     div.classList.add("local");
   }
   div.appendChild(newVideoElement);
+  div.appendChild(document.createTextNode(text));
   container.appendChild(div);
   return div;
 }
@@ -60,16 +61,19 @@ async function main() {
       location.hash === "#teacher" ? ["students", "teacher"] : ["teacher"],
   });
   await roomClient.join(false, false);
+  // CONNECTED event occurs whenever we connect to the room
+  // this happens the first time, and also when we loose the connection
+  // and connect again.
+  roomClient.on(mediasoup.EVENTS.ROOM.CONNECTED, () => {
+    removeAllElementsAndStartClean();
+  });
   //////// SECTION 2 PRODUCER EVENTS ///////
   // Listen for events on 'PRODUCER's. Local tracks.
   roomClient.on(mediasoup.EVENTS.PRODUCER.NEW_PRODUCER, (producer) => {
     const track = producer.track;
     // Producers are local tracks
-    const element = addANewVideoElement(track, true);
+    const element = addANewVideoElement(track, true, "LOCAL");
     addVideoElementAgainstId(producer.id, element);
-  });
-  roomClient.on(mediasoup.EVENTS.ROOM.CONNECTED, () => {
-    removeAllElementsAndStartClean();
   });
   // Listen for producers being removed. disableMic, disableShare, disableWebcam
   roomClient.on(mediasoup.EVENTS.PRODUCER.REMOVE_PRODUCER, (producer) => {
@@ -80,7 +84,7 @@ async function main() {
   roomClient.on(mediasoup.EVENTS.CONSUMER.NEW_CONSUMER, (data) => {
     const { consumer, peer } = data;
     // Consumers are remote tracks
-    const element = addANewVideoElement(consumer.track, false);
+    const element = addANewVideoElement(consumer.track, false, peer.id);
     addVideoElementAgainstId(consumer.id, element);
   });
   // Listen for consumers being removed.

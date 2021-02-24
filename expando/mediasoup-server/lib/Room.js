@@ -1456,6 +1456,28 @@ class Room extends EventEmitter {
         break;
       }
 
+      case "sendDataToPeer": {
+        const { peerId, data } = request.data;
+        const peerToSendTo = this._protooRoom.peers.find(
+          (p) => p.id === peerId
+        );
+        if (!peerToSendTo) {
+          reject(404, `No such peer`);
+        }
+        try {
+          await peerToSendTo.request("dataFromPeer", {
+            sendingPeer: peer.id,
+            data,
+          });
+          accept();
+        } catch (err) {
+          reject(
+            500,
+            `Error: request did not complete, something might be wrong at the other end`
+          );
+        }
+      }
+
       default: {
         logger.error('unknown request.method "%s"', request.method);
 

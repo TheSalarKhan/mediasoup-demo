@@ -46,6 +46,7 @@ export const EVENTS = {
     NEW_PEERS: "NEW_PEERS",
     REMOVE_PEER: "REMOVE_PEER",
     PEER_DISPLAY_NAME_CHANGED: "PEER_DISPLAY_NAME_CHANGED",
+    DATA_FROM_PEER: "DATA_FROM_PEER",
   },
   // Consumer events
   CONSUMER: {
@@ -317,6 +318,12 @@ export default class RoomClient extends EventEmitter {
     if (this._recvTransport) this._recvTransport.close();
 
     this.emit(EVENTS.ROOM.CLOSED);
+  }
+
+  async sendDataToPeer(peerId, data) {
+    // This request manifests itself as an event of
+    // type EVENTS.PEER.DATA_FROM_PEER.
+    await this._protoo.request("sendDataToPeer", { peerId, data });
   }
 
   async join(startWithAudio = true, startWithVideo = true) {
@@ -613,6 +620,11 @@ export default class RoomClient extends EventEmitter {
           }
 
           break;
+        }
+
+        case "dataFromPeer": {
+          this.emit(EVENTS.PEER.DATA_FROM_PEER, request.data);
+          accept();
         }
       }
     });
