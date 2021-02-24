@@ -45,22 +45,7 @@ function removeAllElementsAndStartClean() {
   }
 }
 
-async function main() {
-  //////// SECTION 1 INITIALIZATION ///////
-  // Initializing connection to the server.
-  let roomClient = new mediasoup.RoomClient({
-    roomId: "p6afwjkb",
-    peerId: `${(Math.random() * 1000) | 0}`,
-    displayName: `${(new Date().getTime() / 1000) | 0}`,
-    baseUrl: "ws://localhost:4443",
-    mode: mediasoup.MODES.VIDEO_ONLY,
-    useSimulcast: false,
-    forceH264: false,
-    producerTopics: location.hash === "#teacher" ? ["teacher"] : ["students"],
-    consumerTopics:
-      location.hash === "#teacher" ? ["students", "teacher"] : ["teacher"],
-  });
-  await roomClient.join(false, false);
+function setupMajorEventsForRoomClient(roomClient) {
   // CONNECTED event occurs whenever we connect to the room
   // this happens the first time, and also when we loose the connection
   // and connect again.
@@ -82,15 +67,18 @@ async function main() {
   //////// SECTION 3 CONSUMER EVENTS ///////
   // Listen for events on 'CONSUMERS's. Remote tracks.
   roomClient.on(mediasoup.EVENTS.CONSUMER.NEW_CONSUMER, (data) => {
-    const { consumer, peer } = data;
+    const { consumer, peerId } = data;
     // Consumers are remote tracks
-    const element = addANewVideoElement(consumer.track, false, peer.id);
+    const element = addANewVideoElement(consumer.track, false, peerId);
     addVideoElementAgainstId(consumer.id, element);
   });
   // Listen for consumers being removed.
   roomClient.on(mediasoup.EVENTS.CONSUMER.REMOVE_CONSUMER, (consumer) => {
     removeElementForId(consumer.id);
   });
+}
+
+function subscribeToAllEvents(roomClient) {
   //////// SECTION 4 SUBSCRIBE TO ALL EVENTS ///////
   // Print all supported events
   console.log("Here's a list of mediasoup events supported.");
@@ -114,6 +102,79 @@ async function main() {
   roomClient.on(mediasoup.EVENTS.ERROR, (data) => {
     console.log(`Event: ERROR`, data);
   });
+}
+
+function registerMuteAndUnmuteEvents(roomClient) {
+  // When we're the teacher we will send RPC
+  // messages to the other side - students - and the
+  // other side will call its functions.
+  if (location.hash === "#teacher") {
+    window.callPeerMethod = async function (peerId, func) {
+      roomClient.sendDataToPeer(peerId, {
+        message: "invoke-action",
+        action: func,
+      });
+    };
+  } else {
+    // When we're the student we listen for the RPC
+    // messages and we respond by calling the requested function
+    roomClient.on(mediasoup.EVENTS.PEER.DATA_FROM_PEER, (dataFromPeer) => {
+      const { sendingPeer, data } = dataFromPeer;
+      const { message, action } = data;
+      if (message === "invoke-action") {
+        switch (action) {
+          case "muteMic":
+            roomClient.disableMic();
+            break;
+          case "unmuteMic":
+            roomClient.enableMic();
+            break;
+          case "muteWebcam":
+            roomClient.disableWebcam();
+            break;
+          case "unmuteWebcam":
+            roomClient.enableWebcam();
+            break;
+          case "muteScreen":
+            roomClient.disableShare();
+            break;
+          case "unmuteScreen":
+            roomClient.enableShare();
+            break;
+          default:
+            console.log("Unrecognized action.");
+            break;
+        }
+      }
+    });
+  }
+}
+
+async function main() {
+  //////// SECTION 1 INITIALIZATION ///////
+  // Initializing connection to the server.
+  let roomClient = new mediasoup.RoomClient({
+    roomId: "p6afwjkb",
+    peerId: `${(Math.random() * 1000) | 0}`,
+    displayName: `${(new Date().getTime() / 1000) | 0}`,
+    baseUrl: "ws://localhost:4443",
+    mode: mediasoup.MODES.AUDIO_AND_VIDEO,
+    useSimulcast: false,
+    forceH264: false,
+    producerTopics: location.hash === "#teacher" ? ["teacher"] : ["students"],
+    consumerTopics:
+      location.hash === "#teacher" ? ["students", "teacher"] : ["teacher"],
+  });
+  await roomClient.join(false, false);
+
+  setupMajorEventsForRoomClient(roomClient);
+
+  // The only reason to subscribe to all the events is
+  // to showcase all the options. We won't need this in a
+  // real application.
+  subscribeToAllEvents(roomClient);
+
+  registerMuteAndUnmuteEvents(roomClient);
 
   window.roomClient = roomClient;
 }
