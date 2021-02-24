@@ -73,10 +73,14 @@ export const EVENTS = {
   },
   // Misc events
   MISC: {
-    MIC_DISCONNECTED: "MIC_DISCONNECTED",
     CAN_CHANGE_WEBCAM: "CAN_CHANGE_WEBCAM",
     MEDIA_CAPABILITIES: "MEDIA_CAPABILITIES",
-    AUDIO_MUTED: "AUDIO_MUTED",
+    MIC_ENABLED: "MIC_ENABLED",
+    MIC_DISABLED: "MIC_DISABLED",
+    WEBCAM_ENABLED: "WEBCAM_ENABLED",
+    WEBCAM_DISABLED: "WEBCAM_DISABLED",
+    SCREEN_SHARE_ENABLED: "SCREEN_SHARE_ENABLED",
+    SCREEN_SHARE_DISABLED: "SCREEN_SHARE_DISABLED",
   },
   ERROR: "ERROR",
 };
@@ -822,14 +826,13 @@ export default class RoomClient extends EventEmitter {
         rtpParameters: this._micProducer.rtpParameters,
         codec: this._micProducer.rtpParameters.codecs[0].mimeType.split("/")[1],
       });
+      this.emit(EVENTS.MISC.MIC_ENABLED, { track: this._micProducer.track });
 
       this._micProducer.on("transportclose", () => {
         this._micProducer = null;
       });
 
       this._micProducer.on("trackended", () => {
-        this.emit(EVENTS.MISC.MIC_DISCONNECTED);
-
         this.disableMic().catch(() => {});
       });
     } catch (error) {
@@ -854,6 +857,7 @@ export default class RoomClient extends EventEmitter {
     this.emit(EVENTS.PRODUCER.REMOVE_PRODUCER, {
       id: this._micProducer.id,
     });
+    this.emit(EVENTS.MISC.MIC_DISABLED);
 
     try {
       await this._protoo.request("closeProducer", {
@@ -1005,6 +1009,9 @@ export default class RoomClient extends EventEmitter {
           "/"
         )[1],
       });
+      this.emit(EVENTS.MISC.WEBCAM_ENABLED, {
+        track: this._webcamProducer.track,
+      });
 
       this._webcamProducer.on("transportclose", () => {
         this._webcamProducer = null;
@@ -1047,6 +1054,7 @@ export default class RoomClient extends EventEmitter {
     this.emit(EVENTS.PRODUCER.REMOVE_PRODUCER, {
       id: this._webcamProducer.id,
     });
+    this.emit(EVENTS.MISC.WEBCAM_DISABLED);
 
     try {
       await this._protoo.request("closeProducer", {
@@ -1274,6 +1282,9 @@ export default class RoomClient extends EventEmitter {
           "/"
         )[1],
       });
+      this.emit(EVENTS.MISC.SCREEN_SHARE_ENABLED, {
+        track: this._shareProducer.track,
+      });
 
       this._shareProducer.on("transportclose", () => {
         this._shareProducer = null;
@@ -1317,6 +1328,7 @@ export default class RoomClient extends EventEmitter {
     this.emit(EVENTS.PRODUCER.REMOVE_PRODUCER, {
       id: this._shareProducer.id,
     });
+    this.emit(EVENTS.MISC.SCREEN_SHARE_DISABLED);
 
     try {
       await this._protoo.request("closeProducer", {
@@ -1962,42 +1974,42 @@ export default class RoomClient extends EventEmitter {
   }
 
   // TODO: Can be removed, this was used by the audio only feature.
-  async _pauseConsumer(consumer) {
-    if (consumer.paused) return;
+  // async _pauseConsumer(consumer) {
+  //   if (consumer.paused) return;
 
-    try {
-      await this._protoo.request("pauseConsumer", { consumerId: consumer.id });
+  //   try {
+  //     await this._protoo.request("pauseConsumer", { consumerId: consumer.id });
 
-      consumer.pause();
+  //     consumer.pause();
 
-      this.emit(EVENTS.CONSUMER.CONSUMER_PAUSED, {
-        id: consumer.id,
-        type: "local",
-      });
-    } catch (error) {
-      logger.error("_pauseConsumer() | failed:%o", error);
+  //     this.emit(EVENTS.CONSUMER.CONSUMER_PAUSED, {
+  //       id: consumer.id,
+  //       type: "local",
+  //     });
+  //   } catch (error) {
+  //     logger.error("_pauseConsumer() | failed:%o", error);
 
-      throw Error(`Error pausing Consumer: ${error}`);
-    }
-  }
+  //     throw Error(`Error pausing Consumer: ${error}`);
+  //   }
+  // }
 
   // TODO: Can be removed, this was used by the audio only feature.
-  async _resumeConsumer(consumer) {
-    if (!consumer.paused) return;
+  // async _resumeConsumer(consumer) {
+  //   if (!consumer.paused) return;
 
-    try {
-      await this._protoo.request("resumeConsumer", { consumerId: consumer.id });
+  //   try {
+  //     await this._protoo.request("resumeConsumer", { consumerId: consumer.id });
 
-      consumer.resume();
+  //     consumer.resume();
 
-      this.emit(EVENTS.CONSUMER.CONSUMER_RESUMED, {
-        id: consumer.id,
-        type: "local",
-      });
-    } catch (error) {
-      logger.error("_resumeConsumer() | failed:%o", error);
+  //     this.emit(EVENTS.CONSUMER.CONSUMER_RESUMED, {
+  //       id: consumer.id,
+  //       type: "local",
+  //     });
+  //   } catch (error) {
+  //     logger.error("_resumeConsumer() | failed:%o", error);
 
-      throw Error(`Error resuming Consumer: ${error}`);
-    }
-  }
+  //     throw Error(`Error resuming Consumer: ${error}`);
+  //   }
+  // }
 }
