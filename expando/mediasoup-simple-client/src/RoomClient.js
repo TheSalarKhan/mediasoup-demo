@@ -115,7 +115,7 @@ export default class RoomClient extends EventEmitter {
     // If true SVC will be used, only possible if codec is VP9.
     svc = false,
     // Weather to use datachannels or not.
-    datachannel = false,
+    datachannel = true,
     // set mode of operation.
     mode = MODES.AUDIO_AND_VIDEO,
     producerTopics = ["default"],
@@ -570,12 +570,10 @@ export default class RoomClient extends EventEmitter {
 
               switch (dataConsumer.label) {
                 case "chat": {
-                  const peers = this._peers;
-                  const peersArray = Object.keys(peers).map(
-                    (_peerId) => peers[_peerId]
-                  );
-                  const sendingPeer = peersArray.find((peer) =>
-                    peer.dataConsumers.includes(dataConsumer.id)
+                  const sendingPeer = this._peers.find((peer) =>
+                    peer.dataConsumers
+                      .map((p) => p.id)
+                      .includes(dataConsumer.id)
                   );
 
                   if (!sendingPeer) {
@@ -1148,6 +1146,10 @@ export default class RoomClient extends EventEmitter {
   async changeWebcamResolution() {
     logger.debug("changeWebcamResolution()");
 
+    if (!this._webcamProducer) {
+      throw Error("Please enable webcam before calling this function.");
+    }
+
     try {
       switch (this._webcam.resolution) {
         case "qvga":
@@ -1533,7 +1535,7 @@ export default class RoomClient extends EventEmitter {
     logger.debug('sendChatMessage() [text:"%s]', text);
 
     if (!this._chatDataProducer) {
-      throw Error("No chat DataProducer");
+      throw Error("You must create RoomClient with datachannel: true.");
     }
 
     try {
@@ -1906,10 +1908,15 @@ export default class RoomClient extends EventEmitter {
 
       this.emit(EVENTS.ROOM.CONNECTED);
 
-      this.emit(
-        EVENTS.PEER.NEW_PEERS,
-        peers.map((p) => ({ ...p, consumers: [], dataConsumers: [] }))
-      );
+      const newPeers = peers.map((p) => ({
+        ...p,
+        consumers: [],
+        dataConsumers: [],
+      }));
+      for (const newPeer of newPeers) {
+        this._addPeer(newPeer);
+      }
+      this.emit(EVENTS.PEER.NEW_PEERS, newPeers);
 
       // Enable mic/webcam.
       if (this._produce) {
@@ -1927,10 +1934,11 @@ export default class RoomClient extends EventEmitter {
 
         if (!this._startVideoMuted) this.enableWebcam();
 
+        this.enableChatDataProducer();
+
         this._sendTransport.on("connectionstatechange", (connectionState) => {
-          if (connectionState === "connected") {
-            this.enableChatDataProducer();
-          }
+          // if (connectionState === "connected") {
+          // }
         });
       }
     } catch (error) {

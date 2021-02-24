@@ -157,13 +157,7 @@ async function main() {
     roomId: "p6afwjkb",
     peerId: `${(Math.random() * 1000) | 0}`,
     displayName: `${(new Date().getTime() / 1000) | 0}`,
-    baseUrl: "ws://localhost:4443",
-    mode: mediasoup.MODES.AUDIO_AND_VIDEO,
-    useSimulcast: false,
-    forceH264: false,
-    producerTopics: location.hash === "#teacher" ? ["teacher"] : ["students"],
-    consumerTopics:
-      location.hash === "#teacher" ? ["students", "teacher"] : ["teacher"],
+    baseUrl: "wss://adeelms.cloudrooms.live",
   });
   await roomClient.join(false, false);
 
