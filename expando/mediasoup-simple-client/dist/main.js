@@ -10,7 +10,7 @@ function getVideoElementForTrack(track, isLocal) {
   newVideoElement.classList.add("vid");
   return newVideoElement;
 }
-function addANewVideoElement(track, isLocal, text) {
+function addANewVideoElement(Id, track, isLocal, text) {
   const newVideoElement = getVideoElementForTrack(track, isLocal);
   // Create the containing div.
   const div = document.createElement("div");
@@ -21,7 +21,7 @@ function addANewVideoElement(track, isLocal, text) {
   div.appendChild(newVideoElement);
   div.appendChild(document.createTextNode(text));
   container.appendChild(div);
-  return div;
+  addVideoElementAgainstId(Id, div);
 }
 
 let consumerToVideoElementMap = {};
@@ -57,8 +57,7 @@ function setupMajorEventsForRoomClient(roomClient) {
   roomClient.on(mediasoup.EVENTS.PRODUCER.NEW_PRODUCER, (producer) => {
     const track = producer.track;
     // Producers are local tracks
-    const element = addANewVideoElement(track, true, "LOCAL");
-    addVideoElementAgainstId(producer.id, element);
+    const element = addANewVideoElement(producer.id, track, true, "LOCAL");
   });
   // Listen for producers being removed. disableMic, disableShare, disableWebcam
   roomClient.on(mediasoup.EVENTS.PRODUCER.REMOVE_PRODUCER, (producer) => {
@@ -69,8 +68,12 @@ function setupMajorEventsForRoomClient(roomClient) {
   roomClient.on(mediasoup.EVENTS.CONSUMER.NEW_CONSUMER, (data) => {
     const { consumer, peerId } = data;
     // Consumers are remote tracks
-    const element = addANewVideoElement(consumer.track, false, peerId);
-    addVideoElementAgainstId(consumer.id, element);
+    const element = addANewVideoElement(
+      consumer.id,
+      consumer.track,
+      false,
+      peerId
+    );
   });
   // Listen for consumers being removed.
   roomClient.on(mediasoup.EVENTS.CONSUMER.REMOVE_CONSUMER, (consumer) => {
