@@ -22,7 +22,8 @@
     "heapdump": "^0.3.15",
     "mediasoup": "github:versatica/mediasoup#v3",
     "pidusage": "^2.0.21",
-    "protoo-server": "^4.0.5"
+    "protoo-server": "^4.0.5",
+    "ffmpeg-static": "^4.0.0"
   },
   "devDependencies": {}
 }

@@ -3,6 +3,7 @@ const protoo = require("protoo-server");
 const throttle = require("@sitespeed.io/throttle");
 const Logger = require("./Logger");
 const config = require("../config");
+const { createRecorder } = require("./recorder");
 
 const logger = new Logger("Room");
 
