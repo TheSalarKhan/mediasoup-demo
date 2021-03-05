@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Document</title>
+    <style>
+      body {
+        margin: 0;
+        padding: 0;
+      }
+      .container {
+        display: flex;
+        flex-wrap: wrap;
+        /* height: 100vh; */
+        width: 100vw;
+        background-color: #d3d3d3;
+      }
+      .containerdiv {
+        display: flex;
+        flex-direction: column;
+      }
+      .vid {
+        height: 300px;
+        width: 300px;
+        object-fit: contain;
+      }
+      .local {
+        border: #f00 solid 5px;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="main-container" class="container"></div>
+    <script src="./mediasoup-simple-client-bundle.js"></script>
+    <script>
+      const { EVENTS, MODES, RoomClient } = mediasoup;
+      console.log(EVENTS, MODES, RoomClient);
+
+      const container = document.getElementById("main-container");
+
+      function showLocalVideo(track) {
+        const div = document.createElement("div");
+        div.classList.add("containerdiv");
+        div.classList.add("local");
+        const videoElement = document.createElement("video");
+        videoElement.srcObject = new MediaStream([track]);
+        videoElement.autoplay = true;
+        videoElement.playsInline = true;
+        videoElement.muted = true;
+        videoElement.classList.add("vid");
+
+        div.appendChild(videoElement);
+
+        container.appendChild(div);
+      }
+
+      function showRemoteTrack(track) {
+        const div = document.createElement("div");
+        div.classList.add("containerdiv");
+        const videoElement = document.createElement("video");
+        videoElement.srcObject = new MediaStream([track]);
+        videoElement.autoplay = true;
+        videoElement.playsInline = true;
+        videoElement.controls = true;
+        videoElement.classList.add("vid");
+        if (track.kind === "video") {
+          videoElement.muted = true;
+        }
+
+        div.appendChild(videoElement);
+
+        container.appendChild(div);
+      }
+
+      const producerTopic =
+        location.hash === "#teacher" ? "teacher" : "student";
+      const consumerTopic =
+        location.hash === "#teacher" ? "student" : "teacher";
+
+      let roomClient = new RoomClient({
+        roomId: "room1",
+        peerId: `${(Math.random() * 1000) | 0}`,
+        displayName: "Some peer",
+        baseUrl: "ws://localhost:4443",
+        producerTopics: [producerTopic],
+        consumerTopics: [consumerTopic],
+      });
+
+      (async () => {
+        roomClient.on(EVENTS.PEER.NEW_PEERS, (peers) => {
+          console.log(peers);
+        });
+        roomClient.on(EVENTS.PEER.REMOVE_PEER, (info) => {
+          console.log(info);
+        });
+        roomClient.on(EVENTS.PEER.DATA_FROM_PEER, (info) => {
+          console.log(info);
+
+          if (info.data.command === "enableCam") {
+            roomClient.enableShare();
+          }
+        });
+
+        roomClient.on(EVENTS.CONSUMER.NEW_CHAT_MESSAGE, (info) => {
+          console.log(info);
+        });
+
+        roomClient.on(EVENTS.CONSUMER.NEW_CONSUMER, (info) => {
+          const { consumer, peerId } = info;
+          const { track } = consumer;
+          showRemoteTrack(track);
+        });
+
+        roomClient.on(EVENTS.ROOM.CONNECTED, () => {
+          console.log("We are connected");
+        });
+
+        roomClient.on(EVENTS.PRODUCER.NEW_PRODUCER, (producer) => {
+          const { track } = producer;
+          if (track.kind === "video") {
+            showLocalVideo(track);
+          }
+        });
+
+        await roomClient.join(false, false);
+
+        window.roomClient = roomClient;
+      })();
+    </script>
+  </body>
+</html>
