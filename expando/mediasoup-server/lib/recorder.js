@@ -2,8 +2,12 @@ const FFmpegStatic = require("ffmpeg-static");
 const Process = require("child_process");
 const fs = require("fs");
 
-function getSdp(audioPort, audioPortRtcp, videoPort, videoPortRtcp) {
+function getSdpVp8(audioPort, audioPortRtcp, videoPort, videoPortRtcp) {
   return `v=0\no=- 0 0 IN IP4 127.0.0.1\ns=-\nc=IN IP4 127.0.0.1\nt=0 0\nm=audio ${audioPort} RTP/AVPF 111\na=rtcp:${audioPortRtcp}\na=rtpmap:111 opus/48000/2\na=fmtp:111 minptime=10;useinbandfec=1\nm=video ${videoPort} RTP/AVPF 96\na=rtcp:${videoPortRtcp}\na=rtpmap:96 VP8/90000\n`;
+}
+
+function getSdpH264(audioPort, audioPortRtcp, videoPort, videoPortRtcp) {
+  return `v=0\no=- 0 0 IN IP4 127.0.0.1\ns=-\nc=IN IP4 127.0.0.1\nt=0 0\nm=audio ${audioPort} RTP/AVPF 111\na=rtcp:${audioPortRtcp}\na=rtpmap:111 opus/48000/2\na=fmtp:111 minptime=10;useinbandfec=1\nm=video ${videoPort} RTP/AVPF 125\na=rtcp:${videoPortRtcp}\na=rtpmap:125 H264/90000\na=fmtp:125 level-asymmetry-allowed=1;packetization-mode=1;profile-level-id=42e01f\n`;
 }
 
 function startRecordingFfmpeg(
@@ -21,9 +25,7 @@ function startRecordingFfmpeg(
   const cmdProgram = FFmpegStatic; // From package "ffmpeg-static"
 
   // let cmdInputPath = `${__dirname}/recording/input-vp8.sdp`;
-  let cmdOutputPath = `${__dirname}/recording/${outputFileName}.webm`;
-  let cmdCodec = "";
-  let cmdFormat = "-f webm -flags +global_header";
+  let cmdOutputPath = `${__dirname}/recording/${outputFileName}.mp4`;
 
   // Ensure correct FFmpeg version is installed
   const ffmpegOut = Process.execSync(cmdProgram + " -version", {
@@ -47,10 +49,44 @@ function startRecordingFfmpeg(
     process.exit(1);
   }
 
-  if (useAudio) {
-    cmdCodec += " -map 0:a:0 -c:a copy";
+  let cmdCodec = "";
+  // Audio only
+  if (useAudio && !useVideo) {
+    // -i - means we are reading the first input
+    // from stdin which in audio only case will be
+    // an audio only stream.
+    cmdCodec += "-i -";
+    // Add an empty video stream size 1280x720 @25 FPS.
+    // We are adding -shortest flag because this is an
+    // infinite stream.
+    cmdCodec += " -f lavfi -i color=s=10x10 -shortest";
+    // Map the audio from the first input and don't re-encode
+    cmdCodec += " -map 0:a:0 -c:a aac";
+    // Map the video from the second input and encode using vp8
+    // because the second input is raw.
+    cmdCodec += " -map 1:v:0 -c:v libx264";
   }
-  if (useVideo) {
+  // Video only
+  if (useVideo && !useAudio) {
+    // -i - means we are reading the first input
+    // from stdin which in video only case will be
+    // a video only stream. we'll read in at 25fps.
+    cmdCodec += "-i -";
+    // Add a silent audio track as the second input.
+    // -shortest because this is an infinite audio track.
+    cmdCodec += " -f lavfi -i anullsrc=r=48000:cl=stereo -shortest";
+    // Map the audio from the second and encode using opus.
+    cmdCodec += " -map 1:a:0 -c:a aac";
+    // Map the video from the first stream and pass on without re-encoding.
+    cmdCodec += " -map 0:v:0 -c:v copy";
+  }
+  // Audio and Video
+  if (useVideo && useAudio) {
+    // -i - means we are reading the first input
+    // from stdin which in audio only case will be
+    // an audio only stream.
+    cmdCodec += "-i -";
+    cmdCodec += " -map 0:a:0 -c:a aac";
     cmdCodec += " -map 0:v:0 -c:v copy";
   }
 
@@ -62,9 +98,8 @@ function startRecordingFfmpeg(
     // "-analyzeduration 5M",
     // "-probesize 5M",
     "-fflags +genpts",
-    `-i -`, // The input - means it will be passed via stdin.
     cmdCodec,
-    cmdFormat,
+    "-movflags +faststart -preset ultrafast -r 15",
     `-y ${cmdOutputPath}`,
   ]
     .join(" ")
@@ -82,7 +117,8 @@ function startRecordingFfmpeg(
   // Write the sdp in stdin.
   recProcess.stdin.setDefaultEncoding("utf-8");
   recProcess.stdin.write(
-    getSdp(audioPort, audioPortRtcp, videoPort, videoPortRtcp)
+    // getSdpVp8(audioPort, audioPortRtcp, videoPort, videoPortRtcp)
+    getSdpH264(audioPort, audioPortRtcp, videoPort, videoPortRtcp)
   );
   recProcess.stdin.end();
 
@@ -126,26 +162,35 @@ function startRecordingFfmpeg(
 function concatFiles(inputFiles, outputFileName) {
   // Return a Promise that can be awaited
   const cmdProgram = FFmpegStatic; // From package "ffmpeg-static"
-  let cmdOutputPath = `${__dirname}/recording/${outputFileName}.webm`;
+  let cmdOutputPath = `${__dirname}/recording/${outputFileName}.mp4`;
 
-  let concatFile = `${__dirname}/recording/${outputFileName}-concat.txt`;
-
-  let concatFileContent = inputFiles
-    .map((fileName) => `file '${__dirname}/recording/${fileName}.webm'\n`)
+  let inputFilesString = inputFiles
+    .map((f, _) => `-i ${__dirname}/recording/${f}.mp4`)
+    .join(" ");
+  let filterComplexString = inputFiles
+    .map(
+      (_, index) =>
+        `[${index}:v]scale=1280:720:force_original_aspect_ratio=decrease,pad=1280:720:-1:-1,setsar=1,fps=15,format=yuv420p[v${index}];`
+    )
     .join("");
-
-  fs.writeFileSync(concatFile, concatFileContent);
+  filterComplexString += inputFiles
+    .map((_, index) => `[v${index}][${index}:a]`)
+    .join("");
+  filterComplexString += `concat=n=${inputFiles.length}:v=1:a=1[v][a]`;
 
   // Run process
   const cmdArgStr = [
-    "-f concat",
-    "-safe 0",
-    `-i ${concatFile}`,
-    "-c copy",
-    `-y ${cmdOutputPath}`,
+    inputFilesString,
+    `-filter_complex ${filterComplexString}`,
+    `-map [v] -map [a] -c:v libx264 -c:a aac -movflags +faststart -preset ultrafast -threads 1 -r 15 -y ${cmdOutputPath}`,
   ]
     .join(" ")
     .trim();
+
+  console.log("*********");
+  console.log(cmdArgStr);
+  console.log(cmdArgStr.split(/\s+/));
+  console.log("*********");
 
   let recProcess = Process.spawn(cmdProgram, cmdArgStr.split(/\s+/));
 
@@ -157,10 +202,9 @@ function concatFiles(inputFiles, outputFileName) {
   recProcess.on("exit", (code, signal) => {
     console.log("Concat process exit, code: %d, signal: %s", code, signal);
     // Upon successful exit delete the partials recordings and the concat file.
-    for (file of inputFiles) {
-      fs.unlink(`${__dirname}/recording/${file}.webm`, () => {});
-    }
-    fs.unlink(concatFile, () => {});
+    // for (file of inputFiles) {
+    //   fs.unlink(`${__dirname}/recording/${file}.webm`, () => {});
+    // }
   });
 
   // FFmpeg writes its logs to stderr
@@ -260,16 +304,22 @@ class Recorder {
     // to get a consumer object.
     // Start the ffmpeg recording process and save its handler.
     // after the process has started resume both the consumers.
-    this.audioConsumer = await this.audioTransport.consume({
-      producerId: audioProducerId,
-      rtpCapabilities: this.router.rtpCapabilities, // Assume the recorder supports same formats as mediasoup's router
-      paused: true,
-    });
-    this.videoConsumer = await this.videoTransport.consume({
-      producerId: videoProducerId,
-      rtpCapabilities: this.router.rtpCapabilities, // Assume the recorder supports same formats as mediasoup's router
-      paused: true,
-    });
+    this.audioConsumer = null;
+    this.videoConsumer = null;
+    if (audioProducerId) {
+      this.audioConsumer = await this.audioTransport.consume({
+        producerId: audioProducerId,
+        rtpCapabilities: this.router.rtpCapabilities, // Assume the recorder supports same formats as mediasoup's router
+        paused: true,
+      });
+    }
+    if (videoProducerId) {
+      this.videoConsumer = await this.videoTransport.consume({
+        producerId: videoProducerId,
+        rtpCapabilities: this.router.rtpCapabilities, // Assume the recorder supports same formats as mediasoup's router
+        paused: true,
+      });
+    }
 
     // Consumer cleanup closures.
     // Currently there's no good way to detect
@@ -281,14 +331,18 @@ class Recorder {
       let audioActive = false;
       let videoActive = false;
 
-      this.videoConsumer.enableTraceEvent(["rtp"]);
-      this.videoConsumer.on("trace", (trace) => {
-        videoActive = true;
-      });
-      this.audioConsumer.enableTraceEvent(["rtp"]);
-      this.audioConsumer.on("trace", (trace) => {
-        audioActive = true;
-      });
+      if (this.videoConsumer) {
+        this.videoConsumer.enableTraceEvent(["rtp"]);
+        this.videoConsumer.on("trace", (trace) => {
+          videoActive = true;
+        });
+      }
+      if (this.audioConsumer) {
+        this.audioConsumer.enableTraceEvent(["rtp"]);
+        this.audioConsumer.on("trace", (trace) => {
+          audioActive = true;
+        });
+      }
 
       this.rtpMonitorInterval = setInterval(() => {
         if (audioActive === false && videoActive === false) {
@@ -309,8 +363,8 @@ class Recorder {
     console.log("Starting recording process");
     const recordFileName = this._getNextFileName();
     this.recordingHandler = await startRecordingFfmpeg(
-      true,
-      true,
+      this.audioConsumer ? true : false,
+      this.videoConsumer ? true : false,
       recordFileName,
       audioAndVideoPorts
     );
@@ -341,6 +395,8 @@ class Recorder {
       // a different one if startRecording was called after 'stopRecording'.
       const currentAudioTransport = this.audioTransport;
       const currentVideoTransport = this.videoTransport;
+      this.audioTransport = null;
+      this.videoTransport = null;
 
       // Close the consumers after 1 second for proper clean up.
       // We have to do this because if we close the transport immediately

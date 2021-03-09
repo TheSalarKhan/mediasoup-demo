@@ -66,23 +66,27 @@ module.exports = {
             usedtx: 1,
           },
         },
-        {
-          kind: "video",
-          mimeType: "video/VP8",
-          clockRate: 90000,
-          parameters: {
-            "x-google-start-bitrate": 1000,
-          },
-        },
-        {
-          kind: "video",
-          mimeType: "video/VP9",
-          clockRate: 90000,
-          parameters: {
-            "profile-id": 2,
-            "x-google-start-bitrate": 1000,
-          },
-        },
+        // COMMENTING OUT VP8/VP9:
+        // ======================
+        // We are doing this because recording is currently only
+        // supported with h264.
+        // {
+        //   kind: "video",
+        //   mimeType: "video/VP8",
+        //   clockRate: 90000,
+        //   parameters: {
+        //     "x-google-start-bitrate": 1000,
+        //   },
+        // },
+        // {
+        //   kind: "video",
+        //   mimeType: "video/VP9",
+        //   clockRate: 90000,
+        //   parameters: {
+        //     "profile-id": 2,
+        //     "x-google-start-bitrate": 1000,
+        //   },
+        // },
         {
           kind: "video",
           mimeType: "video/h264",
