@@ -131,6 +131,12 @@ class Room extends EventEmitter {
 
     // For debugging.
     global.audioLevelObserver = this._audioLevelObserver;
+
+    createRecorder(this._mediasoupRouter, this._roomId, 15 * 1000).then(
+      (recorder) => {
+        this._recorder = recorder;
+      }
+    );
   }
 
   /**
@@ -1477,6 +1483,45 @@ class Room extends EventEmitter {
             `Error: request did not complete, something might be wrong at the other end`
           );
         }
+      }
+
+      case "startRecording": {
+        if (this._recorder.isRecording()) {
+          accept();
+          break;
+        }
+
+        let videoProducerId = null;
+        let audioProducerId = null;
+        for (const [_, val] of peer.data.producers) {
+          if (val._data.kind === "video") {
+            videoProducerId = val.id;
+            console.log(JSON.stringify(val));
+          }
+          if (val._data.kind === "audio") {
+            audioProducerId = val.id;
+            console.log(JSON.stringify(val));
+          }
+        }
+
+        accept();
+        if (videoProducerId || audioProducerId) {
+          this._recorder.record(audioProducerId, videoProducerId);
+        }
+
+        break;
+      }
+
+      case "stopRecording": {
+        if (!this._recorder.isRecording()) {
+          accept();
+          break;
+        }
+
+        this._recorder.stopRecording();
+
+        accept();
+        break;
       }
 
       default: {

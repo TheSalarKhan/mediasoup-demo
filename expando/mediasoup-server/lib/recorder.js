@@ -187,11 +187,6 @@ function concatFiles(inputFiles, outputFileName) {
     .join(" ")
     .trim();
 
-  console.log("*********");
-  console.log(cmdArgStr);
-  console.log(cmdArgStr.split(/\s+/));
-  console.log("*********");
-
   let recProcess = Process.spawn(cmdProgram, cmdArgStr.split(/\s+/));
 
   recProcess.on("error", (err) => {
@@ -369,7 +364,10 @@ class Recorder {
       audioAndVideoPorts
     );
     this.recordedFiles.push(recordFileName);
-    this._resumeConsumers();
+
+    setTimeout(() => {
+      this._resumeConsumers();
+    }, 500);
   }
 
   _resumeConsumers() {
