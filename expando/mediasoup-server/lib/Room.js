@@ -832,11 +832,9 @@ class Room extends EventEmitter {
     for (const [_, val] of peer.data.producers) {
       if (val._data.kind === "video") {
         videoProducerId = val.id;
-        console.log(JSON.stringify(val));
       }
       if (val._data.kind === "audio") {
         audioProducerId = val.id;
-        console.log(JSON.stringify(val));
       }
     }
 
