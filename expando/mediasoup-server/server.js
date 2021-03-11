@@ -6,6 +6,7 @@ const config = require("./config");
 
 /* eslint-disable no-console */
 console.log("config.debug:", config.debug);
+process.env.DEBUG = config.debug;
 console.log("config.js:\n%s", JSON.stringify(config, null, "  "));
 /* eslint-enable no-console */
 
