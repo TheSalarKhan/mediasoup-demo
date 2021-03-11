@@ -28,26 +28,27 @@ function startRecordingFfmpeg(
   let cmdOutputPath = `${__dirname}/recording/${outputFileName}.mp4`;
 
   // Ensure correct FFmpeg version is installed
-  const ffmpegOut = Process.execSync(cmdProgram + " -version", {
-    encoding: "utf8",
-  });
-  const ffmpegVerMatch = /ffmpeg version (\d+)\.(\d+)\.(\d+)/.exec(ffmpegOut);
-  let ffmpegOk = false;
-  if (ffmpegOut.startsWith("ffmpeg version git")) {
-    // Accept any Git build (it's up to the developer to ensure that a recent
-    // enough version of the FFmpeg source code has been built)
-    ffmpegOk = true;
-  } else if (ffmpegVerMatch) {
-    const ffmpegVerMajor = parseInt(ffmpegVerMatch[1], 10);
-    if (ffmpegVerMajor >= 4) {
-      ffmpegOk = true;
-    }
-  }
+  // TODO: Move this to initialization or something.
+  // const ffmpegOut = Process.execSync(cmdProgram + " -version", {
+  //   encoding: "utf8",
+  // });
+  // const ffmpegVerMatch = /ffmpeg version (\d+)\.(\d+)\.(\d+)/.exec(ffmpegOut);
+  // let ffmpegOk = false;
+  // if (ffmpegOut.startsWith("ffmpeg version git")) {
+  //   // Accept any Git build (it's up to the developer to ensure that a recent
+  //   // enough version of the FFmpeg source code has been built)
+  //   ffmpegOk = true;
+  // } else if (ffmpegVerMatch) {
+  //   const ffmpegVerMajor = parseInt(ffmpegVerMatch[1], 10);
+  //   if (ffmpegVerMajor >= 4) {
+  //     ffmpegOk = true;
+  //   }
+  // }
 
-  if (!ffmpegOk) {
-    console.error("FFmpeg >= 4.0.0 not found in $PATH; please install it");
-    process.exit(1);
-  }
+  // if (!ffmpegOk) {
+  //   console.error("FFmpeg >= 4.0.0 not found in $PATH; please install it");
+  //   process.exit(1);
+  // }
 
   let cmdCodec = "";
   // Audio only
@@ -94,7 +95,8 @@ function startRecordingFfmpeg(
   const cmdArgStr = [
     "-nostdin",
     "-protocol_whitelist file,rtp,udp,pipe",
-    // "-loglevel debug",
+    "-nostats",
+    // "-loglevel panic",
     // "-analyzeduration 5M",
     // "-probesize 5M",
     "-fflags +genpts",
@@ -162,7 +164,7 @@ function startRecordingFfmpeg(
 function concatFiles(inputFiles, outputFileName) {
   // Return a Promise that can be awaited
   const cmdProgram = FFmpegStatic; // From package "ffmpeg-static"
-  let cmdOutputPath = `${__dirname}/recording/${outputFileName}.mp4`;
+  let cmdOutputPath = `${__dirname}/recording/${outputFileName}-merged.mp4`;
 
   let inputFilesString = inputFiles
     .map((f, _) => `-i ${__dirname}/recording/${f}.mp4`)
@@ -409,10 +411,13 @@ class Recorder {
 
   async stopRecording() {
     await this._killCurrentRecorderAndTransport();
-    concatFiles(
-      this.recordedFiles,
-      `${this.sessionId}-${(new Date().getTime() / 1000) | 0}`
-    );
+    this.recordFileNumber = 0;
+    setTimeout(() => {
+      concatFiles(
+        this.recordedFiles,
+        `${this.sessionId}-${(new Date().getTime() / 1000) | 0}`
+      );
+    }, 2000);
     this._onRecordingStop();
   }
 }

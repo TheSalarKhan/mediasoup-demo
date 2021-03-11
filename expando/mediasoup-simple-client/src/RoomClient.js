@@ -1363,6 +1363,14 @@ export default class RoomClient extends EventEmitter {
     this._startVideoMuted = false;
   }
 
+  async startRecording() {
+    await this._protoo.request("startRecording");
+  }
+
+  async stopRecording() {
+    await this._protoo.request("stopRecording");
+  }
+
   async restartIce() {
     logger.debug("restartIce()");
 

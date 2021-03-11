@@ -135,6 +135,9 @@ class Room extends EventEmitter {
     createRecorder(this._mediasoupRouter, this._roomId, 15 * 1000).then(
       (recorder) => {
         this._recorder = recorder;
+        // This object will store producerIds and
+        // peerId.
+        this._recorder.extraData = {};
       }
     );
   }
@@ -771,6 +774,92 @@ class Room extends EventEmitter {
     return toReturn;
   }
 
+  async _startRecorder(peer) {
+    if (this._recorder.isRecording()) {
+      return;
+    }
+    let videoProducerId = null;
+    let audioProducerId = null;
+    for (const [_, val] of peer.data.producers) {
+      if (val._data.kind === "video") {
+        videoProducerId = val.id;
+      }
+      if (val._data.kind === "audio") {
+        audioProducerId = val.id;
+      }
+    }
+
+    if (videoProducerId || audioProducerId) {
+      await this._recorder.record(audioProducerId, videoProducerId);
+    }
+
+    this._recorder.extraData = {
+      peer: peer,
+      videoProducer: videoProducerId,
+      audioProducer: audioProducerId,
+    };
+  }
+
+  async _stopRecorder() {
+    if (!this._recorder.isRecording()) {
+      return;
+    }
+    this._recorder.extraData = {};
+    await this._recorder.stopRecording();
+  }
+
+  async __updateRecorder(updateForPeer) {
+    if (!this._recorder.isRecording()) {
+      logger.info("Recording not in progress, skipping...");
+      return;
+    }
+
+    const { peer, videoProducer, audioProducer } = this._recorder.extraData;
+    if (!peer) {
+      logger.error(
+        "WARNING! Recording is in progress but there's no peer... Skipping!! This should not happen."
+      );
+      return;
+    }
+
+    if (updateForPeer && peer !== updateForPeer) {
+      logger.info("Peer is not the recording peer, skipping...");
+      return;
+    }
+
+    let videoProducerId = null;
+    let audioProducerId = null;
+    for (const [_, val] of peer.data.producers) {
+      if (val._data.kind === "video") {
+        videoProducerId = val.id;
+        console.log(JSON.stringify(val));
+      }
+      if (val._data.kind === "audio") {
+        audioProducerId = val.id;
+        console.log(JSON.stringify(val));
+      }
+    }
+
+    // If the producers are the same as before, do nothing.
+    if (
+      videoProducerId === videoProducer &&
+      audioProducerId === audioProducer
+    ) {
+      logger.info("Video and audio producers are the same, skipping.");
+      return;
+    }
+
+    if (videoProducerId || audioProducerId) {
+      await this._recorder.record(audioProducerId, videoProducerId);
+    }
+
+    this._recorder.extraData = {
+      peer: peer,
+      videoProducer: videoProducerId,
+      audioProducer: audioProducerId,
+    };
+  }
+
   /**
    * Handle protoo requests from browsers.
    *
@@ -950,7 +1039,7 @@ class Room extends EventEmitter {
         });
 
         // NOTE: For testing.
-        // await transport.enableTraceEvent([ 'probation', 'bwe' ]);
+        // await transport.enableTraceEvent(["probation", "bwe"]);
         await transport.enableTraceEvent(["bwe"]);
 
         transport.on("trace", (trace) => {
@@ -1082,6 +1171,9 @@ class Room extends EventEmitter {
         });
 
         accept({ id: producer.id });
+
+        // Update the recorder if in case there's a recording going on.
+        this.__updateRecorder(peer);
 
         // Optimization: Create a server-side Consumer for each Peer.
         for (const otherPeer of this._getJoinedPeers({ excludePeer: peer })) {
@@ -1486,40 +1578,13 @@ class Room extends EventEmitter {
       }
 
       case "startRecording": {
-        if (this._recorder.isRecording()) {
-          accept();
-          break;
-        }
-
-        let videoProducerId = null;
-        let audioProducerId = null;
-        for (const [_, val] of peer.data.producers) {
-          if (val._data.kind === "video") {
-            videoProducerId = val.id;
-            console.log(JSON.stringify(val));
-          }
-          if (val._data.kind === "audio") {
-            audioProducerId = val.id;
-            console.log(JSON.stringify(val));
-          }
-        }
-
+        await this._startRecorder(peer);
         accept();
-        if (videoProducerId || audioProducerId) {
-          this._recorder.record(audioProducerId, videoProducerId);
-        }
-
         break;
       }
 
       case "stopRecording": {
-        if (!this._recorder.isRecording()) {
-          accept();
-          break;
-        }
-
-        this._recorder.stopRecording();
-
+        await this._stopRecorder(peer);
         accept();
         break;
       }
